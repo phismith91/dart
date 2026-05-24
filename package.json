@@ -1,0 +1,47 @@
+{
+  "name": "dartforge-engine",
+  "version": "0.2.0",
+  "description": "Universal dart engine — scoring, tournaments, match reports. Pure state machine, zero dependencies.",
+  "type": "module",
+  "main": "src/engine.js",
+  "exports": {
+    ".": "./src/engine.js",
+    "./engine": "./src/engine.js",
+    "./logger": "./src/logger.js",
+    "./tournament": "./src/tournament.js",
+    "./checkouts": "./src/checkouts.js",
+    "./types": "./src/types.js",
+    "./formats/single-elim": "./src/formats/single-elim.js",
+    "./formats/round-robin": "./src/formats/round-robin.js"
+  },
+  "files": [
+    "src/"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "test": "node tests/engine.test.js && node tests/logger.test.js && node tests/tournament.test.js",
+    "test:engine": "node tests/engine.test.js",
+    "test:logger": "node tests/logger.test.js",
+    "test:tournament": "node tests/tournament.test.js"
+  },
+  "keywords": [
+    "darts",
+    "dart",
+    "scoring",
+    "tournament",
+    "bracket",
+    "501",
+    "double-out",
+    "checkout",
+    "state-machine"
+  ],
+  "author": "DartForge Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dartforge/dartforge-engine"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
