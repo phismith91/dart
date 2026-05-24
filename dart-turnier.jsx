@@ -166,17 +166,17 @@ const colRed    = "oklch(70% 0.18 20)";    // bust / undo  ≈ #ff8888
 const colRedDk  = "oklch(13% 0.04 20)";    // ≈ #2a1a1a
 const colBlue   = "oklch(67% 0.14 270)";   // random / info ≈ #8888ff
 const colBlueDk = "oklch(13% 0.03 270)";   // ≈ #1a1a2a
+const TS={xs:9,sm:11,md:14,lg:18,xl:24,score:36,display:100};
 
 // ─── Global Styles (fonts + focus-visible + button reset) ───
 function GlobalStyles(){
   return<style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@700;800&family=Figtree:wght@400;600;700&display=swap');
     *:focus-visible{outline:2px solid ${green};outline-offset:2px;border-radius:3px;}
     button{font-family:${FU};color:inherit;cursor:pointer;text-align:inherit;min-height:44px;box-sizing:border-box;transition:filter 130ms ease,transform 100ms ease,background 150ms ease,border-color 150ms ease;}
     button:not(:disabled):hover{filter:brightness(1.12);}
     button:not(:disabled):active{transform:scale(0.97);filter:brightness(0.95);}
     button:disabled{cursor:default;opacity:0.45;}
-    input,textarea{font-family:${FU};transition:border-color 150ms ease;}
+    input,textarea{font-family:${FU};min-height:44px;transition:border-color 150ms ease;}
     input::placeholder,textarea::placeholder{color:${textOff};}
     input:not(:focus-visible),textarea:not(:focus-visible){outline:none;}
     .score-num{font-family:${FD};font-variant-numeric:tabular-nums;letter-spacing:-0.01em;}
@@ -258,7 +258,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
             <div key={p} style={{flex:1,maxWidth:500,padding:"40px 30px",borderRadius:16,background:ap===p?greenDark:bg,border:`3px solid ${ap===p?green:bdrSoft}`,textAlign:"center"}}>
               {ap===p&&<div className="label-upper" style={{fontSize:11,color:green,marginBottom:8}}>▶ AM WURF</div>}
               <div style={{fontSize:24,fontFamily:FU,color:textMid,marginBottom:10,fontWeight:600}}>{name}</div>
-              <div className="score-num" style={{fontSize:100,fontWeight:800,color:r===0?green:textHi,lineHeight:1}}>{r}</div>
+              <div className="score-num" aria-live="polite" aria-label={`Rest: ${r}`} style={{fontSize:100,fontWeight:800,color:r===0?green:textHi,lineHeight:1}}>{r}</div>
               <div style={{display:"flex",gap:6,justifyContent:"center",margin:"16px 0"}}>{[0,1].map(i=><div key={i} style={{width:20,height:20,borderRadius:"50%",background:i<s?green:bdr,border:`2px solid ${i<s?green:textOff}`}}/>)}</div>
               {co&&r<=170&&r>1&&<div style={{fontSize:16,color:orange,marginTop:10,padding:"8px 16px",background:orangeDark,borderRadius:8,display:"inline-block"}}>🎯 {co}</div>}
               <div style={{fontSize:14,color:textOff,marginTop:12,minHeight:20}}>{hist.slice(-6).join(" → ")}</div>
@@ -295,9 +295,9 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
 
   // ── GRIDS ──
   const renderGrid=(from,to)=>{const nums=[];for(let i=from;i<=to;i++)if(!IMPOSSIBLE.has(i))nums.push(i);
-    return<div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:5,padding:"6px 8px",overflowY:"auto",flex:1}}>{nums.map(n=>{const dis=n>rem||(isDoubleOut&&(rem-n)===1);const c=COMMON.has(n);return<button key={n} onClick={()=>!dis&&addScore(n)} style={{background:dis?bg:c?greenDark:surf2,border:`1px solid ${dis?bdrSoft:c?greenBdr:bdr}`,color:dis?textOff:c?green:textMid,borderRadius:6,padding:"10px 0",fontSize:14,fontWeight:c?700:400,cursor:dis?"default":"pointer",fontFamily:F}}>{n}</button>})}</div>;};
+    return<div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:5,padding:"6px 8px",overflowY:"auto",flex:1}}>{nums.map(n=>{const dis=n>rem||(isDoubleOut&&(rem-n)===1);const c=COMMON.has(n);return<button key={n} onClick={()=>!dis&&addScore(n)} aria-disabled={dis?"true":undefined} style={{background:dis?bg:c?greenDark:surf2,border:`1px solid ${dis?bdrSoft:c?greenBdr:bdr}`,color:dis?textOff:c?green:textMid,borderRadius:6,padding:"10px 0",fontSize:14,fontWeight:c?700:400,cursor:dis?"default":"pointer",fontFamily:F}}>{n}</button>})}</div>;};
 
-  const renderFavs=()=><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,padding:"10px",flex:1,alignContent:"start"}}>{FAVORITES.map(n=>{const dis=n>rem||(isDoubleOut&&(rem-n)===1);return<button key={n} onClick={()=>!dis&&addScore(n)} style={{background:dis?bg:n===180?colRedDk:n===0?colBlueDk:greenDark,border:`1px solid ${dis?bdrSoft:n===180?colRed:n===0?colBlue:greenBdr}`,color:dis?textOff:n===180?colRed:n===0?colBlue:green,borderRadius:10,padding:"18px 0",fontSize:22,fontWeight:800,cursor:dis?"default":"pointer",fontFamily:F}}>{n}</button>})}</div>;
+  const renderFavs=()=><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,padding:"10px",flex:1,alignContent:"start"}}>{FAVORITES.map(n=>{const dis=n>rem||(isDoubleOut&&(rem-n)===1);return<button key={n} onClick={()=>!dis&&addScore(n)} aria-disabled={dis?"true":undefined} style={{background:dis?bg:n===180?colRedDk:n===0?colBlueDk:greenDark,border:`1px solid ${dis?bdrSoft:n===180?colRed:n===0?colBlue:greenBdr}`,color:dis?textOff:n===180?colRed:n===0?colBlue:green,borderRadius:10,padding:"18px 0",fontSize:22,fontWeight:800,cursor:dis?"default":"pointer",fontFamily:F}}>{n}</button>})}</div>;
 
   const renderNumpad=()=><div style={{padding:"6px 10px",flex:1,display:"flex",flexDirection:"column"}}><div className="score-num" style={{textAlign:"center",padding:"8px 0",fontSize:32,fontWeight:700,color:npad?textHi:textOff,minHeight:48}}>{npad||"0"}</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,flex:1}}>{[1,2,3,4,5,6,7,8,9].map(d=><button key={d} onClick={()=>npad.length<3&&setNpad(npad+d)} style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:8,padding:"12px 0",fontSize:20,color:textHi,cursor:"pointer",fontFamily:F,fontWeight:600}}>{d}</button>)}<button onClick={()=>setNpad("")} style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:8,padding:"12px 0",fontSize:13,color:textLow,cursor:"pointer",fontFamily:F}}>C</button><button onClick={()=>npad.length<3&&setNpad(npad+"0")} style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:8,padding:"12px 0",fontSize:20,color:textHi,cursor:"pointer",fontFamily:F,fontWeight:600}}>0</button><button onClick={()=>{if(npad){addScore(Number(npad));setNpad("");}}} style={{background:npad?green:surf2,border:`1px solid ${npad?green:bdr}`,borderRadius:8,padding:"12px 0",fontSize:14,color:npad?bg:textOff,cursor:npad?"pointer":"default",fontFamily:F,fontWeight:700}}>OK</button></div></div>;
 
@@ -312,9 +312,9 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
         {["S","D","T"].map(m=><button key={m} onClick={()=>setMm(m)} aria-pressed={mm===m} style={{flex:1,maxWidth:100,padding:"10px 0",borderRadius:8,background:mm===m?(m==="S"?colBlueDk:m==="D"?greenDark:colRedDk):card,border:`2px solid ${mm===m?mc[m]:bdr}`,color:mm===m?mc[m]:textLow,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>{ml[m]}</button>)}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:5,flex:1,alignContent:"start"}}>
-        {fields.map(f=>{const v=f*(mm==="T"?3:mm==="D"?2:1);return<button key={f} onClick={()=>addDart(f)} style={{background:darts.length>=3?bg:surf2,border:`1px solid ${darts.length>=3?bdrSoft:bdr}`,borderRadius:6,padding:"10px 0",color:darts.length>=3?textOff:mc[mm],fontSize:15,fontWeight:600,cursor:darts.length>=3?"default":"pointer",fontFamily:F}}><div>{f}</div><div style={{fontSize:9,color:textLow}}>{v}</div></button>})}
-        <button onClick={()=>darts.length<3&&addDart(25)} style={{background:darts.length>=3||mm==="T"?bg:surf2,border:`1px solid ${darts.length>=3||mm==="T"?bdrSoft:bdr}`,borderRadius:6,padding:"10px 0",color:darts.length>=3||mm==="T"?textOff:orange,fontSize:13,fontWeight:700,cursor:darts.length>=3||mm==="T"?"default":"pointer",fontFamily:F}}><div>Bull</div><div style={{fontSize:9,color:textLow}}>{mm==="D"?50:25}</div></button>
-        <button onClick={()=>darts.length<3&&addDart(0)} style={{background:darts.length>=3?bg:surf2,border:`1px solid ${darts.length>=3?bdrSoft:bdr}`,borderRadius:6,padding:"10px 0",color:darts.length>=3?textOff:textLow,fontSize:13,fontWeight:600,cursor:darts.length>=3?"default":"pointer",fontFamily:F}}><div>Miss</div></button>
+        {fields.map(f=>{const v=f*(mm==="T"?3:mm==="D"?2:1);const dis3=darts.length>=3;return<button key={f} onClick={()=>addDart(f)} aria-disabled={dis3?"true":undefined} style={{background:dis3?bg:surf2,border:`1px solid ${dis3?bdrSoft:bdr}`,borderRadius:6,padding:"10px 0",color:dis3?textOff:mc[mm],fontSize:15,fontWeight:600,cursor:dis3?"default":"pointer",fontFamily:F}}><div>{f}</div><div style={{fontSize:9,color:textLow}}>{v}</div></button>})}
+        <button onClick={()=>darts.length<3&&addDart(25)} aria-disabled={darts.length>=3||mm==="T"?"true":undefined} style={{background:darts.length>=3||mm==="T"?bg:surf2,border:`1px solid ${darts.length>=3||mm==="T"?bdrSoft:bdr}`,borderRadius:6,padding:"10px 0",color:darts.length>=3||mm==="T"?textOff:orange,fontSize:13,fontWeight:700,cursor:darts.length>=3||mm==="T"?"default":"pointer",fontFamily:F}}><div>Bull</div><div style={{fontSize:9,color:textLow}}>{mm==="D"?50:25}</div></button>
+        <button onClick={()=>darts.length<3&&addDart(0)} aria-disabled={darts.length>=3?"true":undefined} style={{background:darts.length>=3?bg:surf2,border:`1px solid ${darts.length>=3?bdrSoft:bdr}`,borderRadius:6,padding:"10px 0",color:darts.length>=3?textOff:textLow,fontSize:13,fontWeight:600,cursor:darts.length>=3?"default":"pointer",fontFamily:F}}><div>Miss</div></button>
       </div>
       <div style={{display:"flex",gap:6,padding:"8px 0"}}>
         <button onClick={()=>setDarts(darts.slice(0,-1))} aria-label="Letzten Dart entfernen" style={{flex:1,padding:"0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:orange,fontSize:14,cursor:"pointer",fontFamily:F}}>↩</button>
@@ -327,7 +327,6 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
 
   return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,display:"flex",flexDirection:"column",maxWidth:420,margin:"0 auto"}}>
-      <GlobalStyles/>
       <div style={{display:"flex",alignItems:"center",padding:"10px 12px",borderBottom:`1px solid ${bdrSoft}`}}>
         <button onClick={onBack} aria-label="Zurück" style={{background:"none",border:"none",color:textLow,fontSize:20,cursor:"pointer",padding:"0 12px 0 0"}}>←</button>
         <div style={{flex:1}}><span style={{fontSize:12,color:textMid}}>{roundName}</span><span style={{marginLeft:6,fontSize:9,padding:"2px 5px",background:isDoubleOut?orangeDark:greenDark,color:isDoubleOut?orange:green,borderRadius:4}}>{isDoubleOut?"DO":"SO"}</span></div>
@@ -361,7 +360,6 @@ function StatsView({bracket,onBack}){
   const best=stats[0];
   return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"16px 12px"}}>
-      <GlobalStyles/>
       <div style={{display:"flex",alignItems:"center",marginBottom:16}}><button onClick={onBack} aria-label="Zurück" style={{background:"none",border:"none",color:textLow,fontSize:20,cursor:"pointer",padding:"0 12px 0 0"}}>←</button><span style={{fontSize:14,fontWeight:700}}>📊 Statistiken</span></div>
       {best&&best.totalThrows>0&&<div style={{textAlign:"center",padding:"14px",marginBottom:14,background:greenDark,border:`1px solid ${greenBdr}`,borderRadius:12}}><div className="label-upper" style={{fontSize:10,color:greenText}}>BESTES TEAM (Ø)</div><div style={{fontFamily:FD,fontSize:20,fontWeight:800,marginTop:4}}>⭐ {best.name}</div><div style={{fontSize:13,color:green,marginTop:2}}>Ø {best.avg} pro Aufnahme</div></div>}
       {stats.map((s,i)=><div key={i} style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,padding:"12px 14px",marginBottom:8}}>
@@ -379,7 +377,6 @@ function SettingsView({sounds,onSave,onBack}){
   const[s,setS]=useState({...sounds});
   return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"16px 12px"}}>
-      <GlobalStyles/>
       <div style={{display:"flex",alignItems:"center",marginBottom:16}}><button onClick={onBack} aria-label="Zurück" style={{background:"none",border:"none",color:textLow,fontSize:20,cursor:"pointer",padding:"0 12px 0 0"}}>←</button><span style={{fontSize:14,fontWeight:700}}>🔊 Sounds</span></div>
       <p style={{fontSize:11,color:textLow,marginBottom:14}}>MP3/WAV-URL pro Event. Leer = Synth-Fallback.</p>
       {SOUND_EVENTS.map(e=><div key={e.key} style={{marginBottom:10}}>
@@ -401,13 +398,13 @@ function MatchCard({match,teams,onOpen,onTV}){
   const t1=match.t1!==null?teams[match.t1]:"—";const t2=match.t2!==null?teams[match.t2]:"—";
   const done=match.winner!==null;const ready=match.t1!==null&&match.t2!==null;
   return<div>
-    <div onClick={()=>ready&&onOpen(match.id)} style={{background:done?greenDark:card,border:`1px solid ${done?greenBdr:bdr}`,borderRadius:10,padding:"10px 14px",cursor:ready?"pointer":"default",minWidth:170}}>
+    <button onClick={()=>onOpen(match.id)} disabled={!ready} style={{width:"100%",display:"block",textAlign:"left",background:done?greenDark:card,border:`1px solid ${done?greenBdr:bdr}`,borderRadius:10,padding:"10px 14px",minWidth:170,color:"inherit"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}><span style={{color:match.winner===match.t1?green:textMid,fontSize:13,fontWeight:match.winner===match.t1?700:400,fontFamily:F,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t1}</span><span style={{color:textLow,fontSize:14,fontFamily:F,fontWeight:700}}>{match.s1}</span></div>
       <div style={{height:1,background:bdr}}/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:5}}><span style={{color:match.winner===match.t2?green:textMid,fontSize:13,fontWeight:match.winner===match.t2?700:400,fontFamily:F,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t2}</span><span style={{color:textLow,fontSize:14,fontFamily:F,fontWeight:700}}>{match.s2}</span></div>
       {ready&&!done&&<div style={{textAlign:"center",marginTop:6,fontSize:10,color:green}}>▶ Spielen</div>}
       {match.isThirdPlace&&<div style={{textAlign:"center",marginTop:4,fontSize:9,color:orange}}>🥉 Platz 3</div>}
-    </div>
+    </button>
     {ready&&!done&&onTV&&<button onClick={()=>onTV(match.id)} style={{width:"100%",marginTop:4,padding:"4px 0",background:colBlueDk,border:`1px solid ${colBlue}`,borderRadius:6,color:colBlue,fontSize:9,cursor:"pointer",fontFamily:F}}>📺 TV</button>}
   </div>;
 }
@@ -431,6 +428,15 @@ export default function DartTurnier(){
 
   useEffect(()=>{if(bracket)save({bracket,config,sounds});},[bracket,config,sounds]);
 
+  useEffect(()=>{
+    if(document.getElementById("dart-fonts"))return;
+    const pc1=Object.assign(document.createElement("link"),{rel:"preconnect",href:"https://fonts.googleapis.com"});
+    const pc2=Object.assign(document.createElement("link"),{rel:"preconnect",href:"https://fonts.gstatic.com"});
+    pc2.crossOrigin="anonymous";
+    const css=Object.assign(document.createElement("link"),{id:"dart-fonts",rel:"stylesheet",href:"https://fonts.googleapis.com/css2?family=Funnel+Display:wght@700;800&family=Figtree:wght@400;600;700&display=swap"});
+    document.head.append(pc1,pc2,css);
+  },[]);
+
   const updateTeamSize=(size)=>{setConfig(c=>({...c,teamSize:size}));setTeamNames(Array(size).fill(""));};
 
   const startTournament=()=>{
@@ -449,7 +455,7 @@ export default function DartTurnier(){
 
   const resetTournament=()=>{if(!confirm("Turnier wirklich zurücksetzen? Alle Daten gehen verloren."))return;clear();setBracket(null);setTeamNames(Array(config.teamSize).fill(""));setPhase("setup");};
 
-  if(phase==="loading")return<div style={{minHeight:"100vh",background:bg,color:textLow,fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center"}}>Lade...</div>;
+  if(phase==="loading")return<><GlobalStyles/><div style={{minHeight:"100vh",background:bg,color:textLow,fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center"}}>Lade...</div></>;
 
   // ── SETUP ──
   if(phase==="setup")return(
@@ -505,14 +511,14 @@ export default function DartTurnier(){
   if((phase==="scoring"||phase==="tv")&&bracket&&activeMatchId){
     const result=getMatch(bracket,activeMatchId);
     if(!result)return null;
-    return<ScoringView match={result.match} teams={bracket.teams} roundName={result.round.name} isDoubleOut={result.round.isDoubleOut} onBack={back} onUpdate={handleUpdate} isTV={phase==="tv"}/>;
+    return<><GlobalStyles/><ScoringView match={result.match} teams={bracket.teams} roundName={result.round.name} isDoubleOut={result.round.isDoubleOut} onBack={back} onUpdate={handleUpdate} isTV={phase==="tv"}/></>;
   }
 
   // ── STATS ──
-  if(phase==="stats"&&bracket)return<StatsView bracket={bracket} onBack={()=>setPhase("bracket")}/>;
+  if(phase==="stats"&&bracket)return<><GlobalStyles/><StatsView bracket={bracket} onBack={()=>setPhase("bracket")}/></>;
 
   // ── SOUNDS ──
-  if(phase==="settings")return<SettingsView sounds={sounds} onSave={(s)=>{setSounds(s);customSounds=s;}} onBack={()=>setPhase("bracket")}/>;
+  if(phase==="settings")return<><GlobalStyles/><SettingsView sounds={sounds} onSave={(s)=>{setSounds(s);customSounds=s;}} onBack={()=>setPhase("bracket")}/></>;
 
   // ── BRACKET ──
   const champion=getChampion(bracket);
