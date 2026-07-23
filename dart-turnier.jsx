@@ -468,6 +468,67 @@ function MatchCard({match,teams,onOpen,onTV}){
 }
 
 // ═══════════════════════════════════════════
+// TV-ÜBERSICHT (dauerhafter Zuschauer-Screen, alle Matches auf einen Blick)
+// ═══════════════════════════════════════════
+function TvMatchCard({match,teams}){
+  const t1=match.t1!==null?teams[match.t1]:"—";
+  const t2=match.t2!==null?teams[match.t2]:"—";
+  const done=match.winner!==null;
+  const ready=match.t1!==null&&match.t2!==null;
+  const started=ready&&(match.history1.length>0||match.history2.length>0||match.legs.length>0);
+  const bye=!ready&&done;
+  return(
+    <div style={{background:done?greenDark:started?"oklch(19% 0.02 145)":card,border:`1px solid ${done?greenBdr:started?green:bdr}`,borderRadius:10,padding:"10px 14px",position:"relative"}}>
+      {started&&!done&&<div style={{position:"absolute",top:8,right:10,fontSize:9,color:green,display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:"50%",background:green,display:"inline-block"}}/>LIVE</div>}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+        <span style={{color:match.winner===match.t1?green:textHi,fontSize:16,fontWeight:match.winner===match.t1?800:600,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t1}</span>
+        <span className="score-num" style={{color:textHi,fontSize:started?22:16,fontWeight:800}}>{started&&!done?match.leg1:match.s1}</span>
+      </div>
+      <div style={{height:1,background:bdr}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
+        <span style={{color:match.winner===match.t2?green:textHi,fontSize:16,fontWeight:match.winner===match.t2?800:600,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t2}</span>
+        <span className="score-num" style={{color:textHi,fontSize:started?22:16,fontWeight:800}}>{started&&!done?match.leg2:match.s2}</span>
+      </div>
+      {started&&!done&&<div style={{textAlign:"center",marginTop:6,fontSize:10,color:textLow}}>Sätze {match.s1}:{match.s2}</div>}
+      {bye&&<div style={{textAlign:"center",marginTop:4,fontSize:9,color:textOff}}>Freilos</div>}
+    </div>
+  );
+}
+
+function TvOverview({bracket}){
+  const champion=getChampion(bracket);
+  const mainRounds=bracket.rounds.filter(r=>!r.matches[0]?.isThirdPlace);
+  const thirdRound=bracket.rounds.find(r=>r.matches[0]?.isThirdPlace);
+  return(
+    <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"24px 32px",display:"flex",flexDirection:"column",gap:20}}>
+      <GlobalStyles/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+        <div style={{fontFamily:FD,fontSize:28,fontWeight:800}}>{bracket.config.name}</div>
+        {champion?
+          <div style={{fontFamily:FD,fontSize:22,fontWeight:800,color:green}}>🏆 {champion} gewinnt!</div>
+          :<div style={{fontSize:13,color:textLow}}>{bracket.config.date}</div>}
+      </div>
+      <div style={{display:"flex",gap:24,overflowX:"auto",flex:1}}>
+        {mainRounds.map((round,rIdx)=>(
+          <div key={rIdx} style={{display:"flex",flexDirection:"column",gap:14,minWidth:260}}>
+            <div style={{textAlign:"center",paddingBottom:6,borderBottom:`2px solid ${bdrSoft}`,fontSize:16,fontWeight:700,color:round.isDoubleOut?orange:green}}>{round.name}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:14,justifyContent:"space-around",flex:1}}>
+              {round.matches.map(m=><TvMatchCard key={m.id} match={m} teams={bracket.teams}/>)}
+            </div>
+          </div>
+        ))}
+        {thirdRound&&<div style={{display:"flex",flexDirection:"column",gap:14,minWidth:260}}>
+          <div style={{textAlign:"center",paddingBottom:6,borderBottom:`2px solid ${bdrSoft}`,fontSize:16,fontWeight:700,color:colBlue}}>{thirdRound.name}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:14,justifyContent:"center",flex:1}}>
+            {thirdRound.matches.map(m=><TvMatchCard key={m.id} match={m} teams={bracket.teams}/>)}
+          </div>
+        </div>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════════════
 export default function DartTurnier(){
@@ -485,7 +546,8 @@ export default function DartTurnier(){
     const saved=await load();
     if(saved?.bracket){
       setBracket(saved.bracket);setConfig(saved.config||config);setSounds(saved.sounds||{});customSounds=saved.sounds||{};
-      if(tvParam){setActiveMatchId(tvParam);setPhase("tv");}
+      if(tvParam==='overview'){setPhase("tv-overview");}
+      else if(tvParam){setActiveMatchId(tvParam);setPhase("tv");}
       else{setPhase("bracket");}
     } else{setTeamNames(Array(8).fill(""));setPhase("setup");}
   })();},[]);
@@ -531,6 +593,7 @@ export default function DartTurnier(){
 
   const openMatch=(id)=>{setActiveMatchId(id);setPhase("scoring");};
   const openTV=(id)=>{const u=new URL(window.location.href);u.search=`?tv=${encodeURIComponent(id)}`;u.hash='';window.open(u.toString(),'dart-tv','noopener');};
+  const openTvOverview=()=>{const u=new URL(window.location.href);u.search='?tv=overview';u.hash='';window.open(u.toString(),'dart-tv-overview','noopener');};
   const back=()=>{setActiveMatchId(null);setPhase("bracket");};
 
   const handleUpdate=(updatedMatch)=>{
@@ -591,6 +654,9 @@ export default function DartTurnier(){
     </div>
   );
 
+  // ── TV-ÜBERSICHT (dauerhafter Zuschauer-Screen) ──
+  if(phase==="tv-overview"&&bracket)return<TvOverview bracket={bracket}/>;
+
   // ── SCORING / TV ──
   if((phase==="scoring"||phase==="tv")&&bracket&&activeMatchId){
     const result=getMatch(bracket,activeMatchId);
@@ -620,6 +686,7 @@ export default function DartTurnier(){
           {bracket.config.date&&<div style={{fontSize:11,color:textLow,marginTop:2}}>{bracket.config.date}</div>}
         </div>
         <div style={{display:"flex",gap:8}}>
+          <button onClick={openTvOverview} aria-label="TV-Übersicht öffnen" style={{background:colBlueDk,border:`1px solid ${colBlue}`,color:colBlue,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11}}>📺 TV-Übersicht</button>
           <button onClick={()=>setPhase("stats")} aria-label="Statistiken" style={{background:surf2,border:`1px solid ${bdr}`,color:greenText,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11}}>Stats</button>
           <button onClick={()=>setPhase("settings")} aria-label="Sounds konfigurieren" style={{background:surf2,border:`1px solid ${bdr}`,color:textLow,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11}}>Sounds</button>
           <button onClick={()=>setShowHelp(true)} aria-label="Hilfe anzeigen" style={{background:surf2,border:`1px solid ${bdr}`,color:textLow,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11}}>?</button>
