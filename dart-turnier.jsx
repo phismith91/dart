@@ -95,6 +95,16 @@ function propagateBracket(b){
 function getMatch(b,id){for(const r of b.rounds){const m=r.matches.find(x=>x.id===id);if(m)return{match:m,round:r};}return null;}
 function setMatchIn(b,match){for(const r of b.rounds){const i=r.matches.findIndex(x=>x.id===match.id);if(i!==-1){r.matches[i]=match;return;}}}
 function getChampion(b){const mainRounds=b.rounds.filter(r=>!r.matches[0]?.isThirdPlace);const fin=mainRounds[mainRounds.length-1];return fin?.matches[0]?.winner!==null?b.teams[fin.matches[0].winner]:null;}
+function findLiveMatch(b){
+  for(const round of b.rounds){
+    for(const m of round.matches){
+      const ready=m.t1!==null&&m.t2!==null;
+      const started=ready&&(m.history1.length>0||m.history2.length>0||m.legs.length>0);
+      if(started&&m.winner===null)return{match:m,round};
+    }
+  }
+  return null;
+}
 
 // ═══════════════════════════════════════════
 // STATS (computed from match data — undo-safe)
@@ -528,6 +538,23 @@ function TvOverview({bracket}){
   );
 }
 
+// Ein Screen fürs Publikum: zeigt Bracket-Übersicht, springt automatisch ins
+// laufende Match (Vollbild) sobald eins startet, und kurz nach Spielende
+// (Sieger-Einblendung) wieder zurück zur Übersicht.
+function TvAuto({bracket}){
+  const[pinnedId,setPinnedId]=useState(null);
+  const live=findLiveMatch(bracket);
+
+  useEffect(()=>{
+    if(live){setPinnedId(live.match.id);return;}
+    if(pinnedId){const t=setTimeout(()=>setPinnedId(null),5000);return()=>clearTimeout(t);}
+  },[bracket]);
+
+  const focus=live||(pinnedId?getMatch(bracket,pinnedId):null);
+  if(focus)return<><GlobalStyles/><ScoringView match={focus.match} teams={bracket.teams} roundName={focus.round.name} isDoubleOut={focus.round.isDoubleOut} onBack={()=>{}} onUpdate={()=>{}} isTV={true}/></>;
+  return<TvOverview bracket={bracket}/>;
+}
+
 // ═══════════════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════════════
@@ -655,7 +682,7 @@ export default function DartTurnier(){
   );
 
   // ── TV-ÜBERSICHT (dauerhafter Zuschauer-Screen) ──
-  if(phase==="tv-overview"&&bracket)return<TvOverview bracket={bracket}/>;
+  if(phase==="tv-overview"&&bracket)return<TvAuto bracket={bracket}/>;
 
   // ── SCORING / TV ──
   if((phase==="scoring"||phase==="tv")&&bracket&&activeMatchId){
