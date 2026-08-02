@@ -256,6 +256,19 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
     setAp(ap===1?2:1);onUpdate(m);
   };
 
+  // Enter trägt die aktuell eingegebene Aufnahme ein (Numpad-Rest oder Darts-Summe) statt Button-Klick
+  useEffect(()=>{
+    if(isTV||showStarter||match.winner!==null)return;
+    const onKey=(e)=>{
+      if(e.key!=="Enter")return;
+      e.preventDefault(); // sonst aktiviert der Browser zusätzlich den zuletzt fokussierten Button (doppelte Eintragung)
+      if(tab===4&&npad){addScore(Number(npad));setNpad("");}
+      else if(tab===5&&darts.length){addScore(dTotal);setDarts([]);}
+    };
+    window.addEventListener("keydown",onKey);
+    return()=>window.removeEventListener("keydown",onKey);
+  });
+
   const undoThrow=()=>{const m=JSON.parse(JSON.stringify(match));const op=ap===1?2:1;const hk=op===1?"history1":"history2",lk=op===1?"leg1":"leg2";if(!m[hk].length)return;m[lk]+=m[hk].pop();setAp(op);onUpdate(m);};
   const undoLeg=()=>{if(!match.legs.length)return;const m=JSON.parse(JSON.stringify(match));const l=m.legs.pop();const sk=l.winner===1?"s1":"s2";m[sk]--;m.history1=l.h1;m.history2=l.h2;m.leg1=501-l.h1.reduce((a,b)=>a+b,0);m.leg2=501-l.h2.reduce((a,b)=>a+b,0);m.winner=null;m.legStarter=m.legStarter===1?2:1;setAp(1);onUpdate(m);};
   const selectStarter=(p)=>{const m=JSON.parse(JSON.stringify(match));m.starter=p;m.legStarter=p;setAp(p);setShowStarter(false);onUpdate(m);};
@@ -367,7 +380,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
         <button onClick={()=>darts.length<3&&addDart(0)} aria-disabled={darts.length>=3?"true":undefined} style={{background:darts.length>=3?bg:surf2,border:`1px solid ${darts.length>=3?bdrSoft:bdr}`,borderRadius:6,padding:"10px 0",color:darts.length>=3?textOff:textLow,fontSize:13,fontWeight:600,cursor:darts.length>=3?"default":"pointer",fontFamily:F}}><div>Miss</div></button>
       </div>
       <div style={{display:"flex",gap:6,padding:"8px 0"}}>
-        <button onClick={()=>setDarts(darts.slice(0,-1))} aria-label="Letzten Dart entfernen" style={{flex:1,padding:"0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:orange,fontSize:14,cursor:"pointer",fontFamily:F}}>↩</button>
+        <button onClick={()=>darts.length&&setDarts(darts.slice(0,-1))} disabled={!darts.length} aria-label="Letzten Dart entfernen" style={{flex:1,padding:"0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:darts.length?orange:textOff,fontSize:14,fontFamily:F}}>↩</button>
         <button onClick={()=>{if(darts.length){addScore(dTotal);setDarts([]);}}} style={{flex:2,padding:"10px 0",background:darts.length?green:surf2,border:`1px solid ${darts.length?green:bdr}`,borderRadius:8,color:darts.length?bg:textOff,fontSize:14,fontWeight:700,cursor:darts.length?"pointer":"default",fontFamily:F}}>{darts.length?`${dTotal} eintragen`:"Darts eingeben"}</button>
       </div>
     </div>;};
