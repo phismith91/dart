@@ -294,7 +294,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
           <div style={{fontFamily:FD,fontSize:"20vw",fontWeight:800,color:colRed,letterSpacing:"-0.02em"}}>{bustMsg}</div>
         </div>}
 
-        {match.winner&&<div style={{position:"fixed",inset:0,background:greenDark,zIndex:50,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",animation:"tv-winner 0.5s ease-out forwards"}}>
+        {match.winner!==null&&<div style={{position:"fixed",inset:0,background:greenDark,zIndex:50,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",animation:"tv-winner 0.5s ease-out forwards"}}>
           <div className="label-upper" style={{fontSize:"min(18px,1.8vw)",color:greenText,letterSpacing:"0.14em",marginBottom:"3vh"}}>SIEGER</div>
           <div style={{fontFamily:FD,fontSize:"min(120px,11vw)",fontWeight:800,color:textHi,lineHeight:0.92,letterSpacing:"-0.02em",textAlign:"center",padding:"0 6vw"}}>{teams[match.winner]}</div>
           <div style={{fontFamily:FD,fontSize:"min(48px,4.5vw)",fontWeight:700,color:green,marginTop:"3vh"}}>gewinnt!</div>
@@ -344,7 +344,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
 
   if(!isReady)return<div style={{minHeight:"100vh",background:bg,color:textOff,fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center"}}>Warte auf vorherige Runde...</div>;
 
-  if(match.winner)return(
+  if(match.winner!==null)return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10,padding:20}}>
       <div style={{fontSize:48}}>🏆</div>
       <div style={{fontFamily:FD,fontSize:22,fontWeight:800,color:green,letterSpacing:"-0.01em"}}>{teams[match.winner]} gewinnt!</div>
