@@ -233,9 +233,10 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
 
   // Enter trägt die aktuell eingegebene Aufnahme ein (Numpad-Rest oder Darts-Summe) statt Button-Klick
   useEffect(()=>{
-    if(isTV||showStarter)return;
+    if(isTV||showStarter||match.winner!==null)return;
     const onKey=(e)=>{
       if(e.key!=="Enter")return;
+      e.preventDefault(); // sonst aktiviert der Browser zusätzlich den zuletzt fokussierten Button (doppelte Eintragung)
       if(tab===4&&npad){addScore(Number(npad));setNpad("");}
       else if(tab===5&&darts.length){addScore(dTotal);setDarts([]);}
     };
