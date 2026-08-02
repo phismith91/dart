@@ -255,6 +255,10 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
 
   // ── TV VIEW ──
   if(isTV){
+    // Wer dran ist rein aus den Match-Daten ableiten statt aus lokalem ap-State: die TV-Ansicht
+    // mountet oft erst mitten im Leg (Match ist schon "live"), da wäre der bei match.legStarter
+    // eingefrorene ap-Startwert sonst dauerhaft falsch.
+    const turnPlayer=match.history1.length===match.history2.length?match.legStarter:(match.legStarter===1?2:1);
     const sides=[{p:1,name:t1,rem:match.leg1,s:match.s1,co:co1},{p:2,name:t2,rem:match.leg2,s:match.s2,co:co2}];
     return(
       <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
@@ -280,7 +284,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
         <div style={{flex:1,display:"flex",position:"relative"}}>
           <div style={{position:"absolute",top:0,bottom:0,left:"50%",width:1,background:bdrSoft,transform:"translateX(-50%)",pointerEvents:"none"}}/>
           {sides.map(({p,name,rem:r,s,co})=>{
-            const active=ap===p;
+            const active=turnPlayer===p;
             return(
               <div key={p} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"5vh 6vw",background:active?"oklch(19% 0.009 145)":"oklch(15% 0.005 145)",borderTop:`4px solid ${active?green:bdrSoft}`,transition:"background 400ms ease,border-color 400ms ease",position:"relative"}}>
                 <div style={{display:"flex",gap:16,marginBottom:"5vh"}}>
@@ -581,8 +585,23 @@ export default function DartTurnier(){
 
   // Live-update TV window when scorer saves
   useEffect(()=>{
-    if(!new URLSearchParams(window.location.search).get('tv'))return;
-    const onSt=(e)=>{if(e.key!==SK||!e.newValue)return;try{const s=JSON.parse(e.newValue);if(s?.bracket)setBracket(s.bracket);}catch(err){}};
+    const tvParam=new URLSearchParams(window.location.search).get('tv');
+    if(!tvParam)return;
+    const onSt=(e)=>{
+      if(e.key!==SK||!e.newValue)return;
+      try{
+        const s=JSON.parse(e.newValue);
+        if(!s?.bracket)return;
+        setBracket(s.bracket);
+        // Falls das TV-Fenster schon offen war, bevor das Turnier gestartet wurde (noch auf "setup"
+        // hängend), jetzt nachträglich in die TV-Ansicht wechseln statt für immer auf Setup zu bleiben
+        setPhase(p=>{
+          if(p!=="setup"&&p!=="loading")return p;
+          return tvParam==='overview'?"tv-overview":"tv";
+        });
+        if(tvParam!=='overview')setActiveMatchId(tvParam);
+      }catch(err){}
+    };
     window.addEventListener('storage',onSt);
     return()=>window.removeEventListener('storage',onSt);
   },[]);
