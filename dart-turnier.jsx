@@ -435,6 +435,7 @@ function StatsView({bracket,onBack}){
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontFamily:FD,fontSize:14,fontWeight:700,color:textHi}}>{s.name}</span><span className="score-num" style={{fontSize:12,color:green}}>{s.totalThrows>0?`Ø ${s.avg}`:"—"}</span></div>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",fontSize:11,color:textLow}}><span>Wrf {s.totalThrows}</span><span>Sieg {s.matchesWon}</span><span>Legs {s.legs}</span><span style={{color:s.ton80>0?colRed:textLow}}>180: {s.ton80}x</span><span style={{color:s.ton40>0?orange:textLow}}>140+: {s.ton40}x</span><span style={{color:s.ton>0?greenText:textLow}}>100+: {s.ton}x</span><span>Hi: {s.highest||"—"}</span></div>
       </div>)}
+      {stats.every(s=>s.totalThrows===0&&s.matchesWon===0)&&<div style={{textAlign:"center",color:textOff,fontSize:12,padding:"40px 20px"}}>Noch keine Würfe erfasst — Statistiken erscheinen, sobald das erste Match läuft.</div>}
     </div>
   );
 }
@@ -716,8 +717,8 @@ export default function DartTurnier(){
       </div>
 
       <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:12,padding:16,width:"100%",maxWidth:340,marginBottom:12}}>
-        <p style={{color:textLow,fontSize:10,margin:"0 0 8px"}}>{config.teamSize} Teams · je 2 Spieler</p>
-        <div style={{maxHeight:240,overflowY:"auto"}}>
+        <p style={{color:textLow,fontSize:10,margin:"0 0 8px"}}>{config.teamSize} Teams · je 2 Spieler · {teamNames.filter(n=>n.trim()).length} benannt (Rest wird "Team N")</p>
+        <div style={{maxHeight:240,overflowY:"auto",border:`1px solid ${bdrSoft}`,borderRadius:8,padding:8}}>
           {teamNames.map((name,i)=><div key={i} style={{marginBottom:5,display:"flex",alignItems:"center",gap:6}}>
             <span style={{color:textOff,fontSize:10,width:16,textAlign:"right"}}>{i+1}</span>
             <input value={name} aria-label={`Team ${i+1} Name`} onChange={e=>{const n=[...teamNames];n[i]=e.target.value;setTeamNames(n);}} placeholder={`Team ${i+1}`} style={{flex:1,background:surf2,border:`1px solid ${bdr}`,borderRadius:6,padding:"7px 10px",color:textHi,fontFamily:F,fontSize:12}}/>
