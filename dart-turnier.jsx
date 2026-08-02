@@ -494,18 +494,19 @@ function HelpModal({onClose}){
 // ═══════════════════════════════════════════
 // MATCH CARD
 // ═══════════════════════════════════════════
-function MatchCard({match,teams,onOpen,onTV}){
+function MatchCard({match,teams,onOpen}){
   const t1=match.t1!==null?teams[match.t1]:"—";const t2=match.t2!==null?teams[match.t2]:"—";
   const done=match.winner!==null;const ready=match.t1!==null&&match.t2!==null;
+  const freilos=done&&!ready;
   return<div>
     <button onClick={()=>onOpen(match.id)} disabled={!ready} style={{width:"100%",display:"block",textAlign:"left",background:done?greenDark:card,border:`1px solid ${done?greenBdr:bdr}`,borderRadius:10,padding:"10px 14px",minWidth:170,color:"inherit"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}><span style={{color:match.winner===match.t1?green:textMid,fontSize:13,fontWeight:match.winner===match.t1?700:400,fontFamily:F,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t1}</span><span style={{color:textLow,fontSize:14,fontFamily:F,fontWeight:700}}>{match.s1}</span></div>
       <div style={{height:1,background:bdr}}/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:5}}><span style={{color:match.winner===match.t2?green:textMid,fontSize:13,fontWeight:match.winner===match.t2?700:400,fontFamily:F,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t2}</span><span style={{color:textLow,fontSize:14,fontFamily:F,fontWeight:700}}>{match.s2}</span></div>
       {ready&&!done&&<div style={{textAlign:"center",marginTop:6,fontSize:10,color:green}}>▶ Spielen</div>}
+      {freilos&&<div style={{textAlign:"center",marginTop:6,fontSize:10,color:textOff}}>Freilos — steigt kampflos auf</div>}
       {match.isThirdPlace&&<div style={{textAlign:"center",marginTop:4,fontSize:9,color:orange}}>🥉 Platz 3</div>}
     </button>
-    {ready&&!done&&onTV&&<button onClick={()=>onTV(match.id)} style={{width:"100%",marginTop:4,padding:"4px 0",background:colBlueDk,border:`1px solid ${colBlue}`,borderRadius:6,color:colBlue,fontSize:9,cursor:"pointer",fontFamily:F}}>📺 TV</button>}
   </div>;
 }
 
@@ -599,6 +600,7 @@ export default function DartTurnier(){
   const[bracket,setBracket]=useState(null);
   const[activeMatchId,setActiveMatchId]=useState(null);
   const[sounds,setSounds]=useState({});
+  const[tvBlocked,setTvBlocked]=useState(false);
 
   useEffect(()=>{(async()=>{
     const tvParam=new URLSearchParams(window.location.search).get('tv');
@@ -667,8 +669,11 @@ export default function DartTurnier(){
   };
 
   const openMatch=(id)=>{setActiveMatchId(id);setPhase("scoring");};
-  const openTV=(id)=>{const u=new URL(window.location.href);u.search=`?tv=${encodeURIComponent(id)}`;u.hash='';window.open(u.toString(),'dart-tv','noopener');};
-  const openTvOverview=()=>{const u=new URL(window.location.href);u.search='?tv=overview';u.hash='';window.open(u.toString(),'dart-tv-overview','noopener');};
+  const openTvOverview=()=>{
+    const u=new URL(window.location.href);u.search='?tv=overview';u.hash='';
+    const w=window.open(u.toString(),'dart-tv-overview','noopener');
+    setTvBlocked(!w); // Browser hat das Popup unterdrückt — sichtbar melden statt stumm nichts zu tun
+  };
   const back=()=>{setActiveMatchId(null);setPhase("bracket");};
 
   const handleUpdate=(updatedMatch)=>{
@@ -771,6 +776,11 @@ export default function DartTurnier(){
         </div>
       </div>
 
+      {tvBlocked&&<div style={{background:colRedDk,border:`1px solid ${colRed}`,borderRadius:8,padding:"8px 14px",fontSize:11,color:colRed,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+        <span>Browser hat das TV-Fenster blockiert (Popup-Blocker). Popups für diese Seite erlauben, dann nochmal auf "TV-Übersicht" klicken.</span>
+        <button onClick={()=>setTvBlocked(false)} aria-label="Hinweis schließen" style={{background:"none",border:"none",color:colRed,fontSize:14,cursor:"pointer",flexShrink:0}}>✕</button>
+      </div>}
+
       {/* ── Bracket rounds (left column on desktop) ── */}
       <div className="bracket-main" style={{overflowX:"auto"}}>
         <div style={{display:"flex",gap:14,minWidth:"fit-content",alignItems:"flex-start"}}>
@@ -781,7 +791,7 @@ export default function DartTurnier(){
                 <div style={{fontSize:10,color:textLow,marginTop:2}}>501 · {round.isDoubleOut?"Double Out":"Single Out"} · Bo{config.legsToWin*2-1}</div>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:10,justifyContent:"space-around",minHeight:rIdx===0?"auto":rIdx===mainRounds.length-2?260:280}}>
-                {round.matches.map(m=><MatchCard key={m.id} match={m} teams={bracket.teams} onOpen={openMatch} onTV={openTV}/>)}
+                {round.matches.map(m=><MatchCard key={m.id} match={m} teams={bracket.teams} onOpen={openMatch}/>)}
               </div>
             </div>
           ))}
@@ -791,7 +801,7 @@ export default function DartTurnier(){
               <div style={{fontSize:10,color:textLow,marginTop:2}}>501 · {thirdRound.isDoubleOut?"Double Out":"Single Out"} · Bo{config.legsToWin*2-1}</div>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:10,justifyContent:"center",minHeight:280}}>
-              {thirdRound.matches.map(m=><MatchCard key={m.id} match={m} teams={bracket.teams} onOpen={openMatch} onTV={openTV}/>)}
+              {thirdRound.matches.map(m=><MatchCard key={m.id} match={m} teams={bracket.teams} onOpen={openMatch}/>)}
             </div>
           </div>}
         </div>
