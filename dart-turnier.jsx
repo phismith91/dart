@@ -60,10 +60,15 @@ function buildBracket(teams,config){
     for(let m=0;m<matchCount;m++){
       let t1=null,t2=null;
       if(r===0){
-        // Standard-Seeding (1 vs. N, 2 vs. N-1, …) verteilt Freilose gleichmäßig, nie zwei pro Match
-        const i1=m,i2=bracketSize-1-m;
-        t1=i1<n?i1:null;
-        t2=i2<n?i2:null;
+        if(n===bracketSize){
+          // Keine Freilose nötig — alte Paarung (0v1, 2v3, …) unverändert lassen
+          t1=m*2;t2=m*2+1;
+        } else {
+          // Standard-Seeding (1 vs. N, 2 vs. N-1, …) verteilt Freilose gleichmäßig, nie zwei pro Match
+          const i1=m,i2=bracketSize-1-m;
+          t1=i1<n?i1:null;
+          t2=i2<n?i2:null;
+        }
       }
       const match=newMatch(`r${r}m${m}`,t1,t2,r);
       if(r===0&&(t1===null)!==(t2===null))match.winner=t1!==null?t1:t2; // Freilos: kampflos weiter
@@ -71,8 +76,11 @@ function buildBracket(teams,config){
     }
     rounds.push({matches,name:ROUND_NAMES[numRounds]?.[r]||`Runde ${r+1}`,isDoubleOut:r===numRounds-1&&config.finalDoubleOut});
   }
-  // Third-place match
-  if(config.thirdPlace&&numRounds>=2){
+  // Third-place match — nur sinnvoll, wenn beide Halbfinal-Slots durch ein echtes Spiel entschieden werden;
+  // war eines davon selbst ein Freilos (möglich bei numRounds===2, z.B. 3 Teams), gibt es keinen Verlierer dafür
+  const semifinalRound=rounds[numRounds-2];
+  const semifinalHasFreilos=semifinalRound?.matches.some(m=>m.winner!==null);
+  if(config.thirdPlace&&numRounds>=2&&!semifinalHasFreilos){
     rounds.push({matches:[newMatch("3rd",null,null,numRounds,true)],name:"Platz 3",isDoubleOut:config.finalDoubleOut});
   }
   return{teams:[...teams],rounds,config};
