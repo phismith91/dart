@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo } from "react";
 import * as Tone from "tone";
 
 // ═══════════════════════════════════════════
@@ -200,7 +200,16 @@ const colBlueDk = "var(--col-blue-dk)";
 
 // ─── Global Styles (fonts + focus-visible + button reset) ───
 function GlobalStyles(){
-  return<style>{`
+  useLayoutEffect(()=>{ // vor dem ersten Paint injizieren, sonst kurzer Flash ohne Farb-Tokens/Button-Reset
+    if(document.getElementById("dart-global-styles"))return; // schon injiziert (App mountet diese Komponente pro Phase neu)
+    const el=document.createElement("style");
+    el.id="dart-global-styles";
+    el.textContent=GLOBAL_STYLES_CSS;
+    document.head.appendChild(el);
+  },[]);
+  return null;
+}
+const GLOBAL_STYLES_CSS=`
     :root{
       --bg: oklch(13% 0.006 145); --card: oklch(17% 0.007 145); --surf2: oklch(21% 0.006 145);
       --bdr: oklch(28% 0.007 145); --bdr-soft: oklch(21% 0.006 145);
@@ -239,13 +248,12 @@ function GlobalStyles(){
     @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;transform:none!important;}}
     @keyframes tv-bust{0%{opacity:0}5%{opacity:0.92}85%{opacity:0.92}100%{opacity:0}}
     @keyframes tv-winner{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
-  `}</style>;
-}
+`;
 
 // ═══════════════════════════════════════════
 // SCORING VIEW
 // ═══════════════════════════════════════════
-function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
+function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,legsToWin=2}){
   const[ap,setAp]=useState(match.legStarter||1);
   const[bustMsg,setBust]=useState(null);
   const[tab,setTab]=useState(0);
@@ -265,7 +273,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
   const addScore=(score)=>{
     if(score<0||score>180)return;
     if(IMPOSSIBLE.has(score)){setBust("Unmöglich!");setTimeout(()=>setBust(null),1200);return;}
-    const m=JSON.parse(JSON.stringify(match));
+    const m=structuredClone(match);
     const k=ap===1?"leg1":"leg2",hk=ap===1?"history1":"history2";
     const rest=m[k]-score;
     if(rest<0||(isDoubleOut&&rest===1)){setBust("BUST!");playSound("bust");setTimeout(()=>setBust(null),1200);setAp(ap===1?2:1);return;}
@@ -275,7 +283,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
       playSound("checkout");
       const sk=ap===1?"s1":"s2";m[sk]++;
       m.legs.push({winner:ap,h1:[...m.history1],h2:[...m.history2]});
-      if(m[sk]>=2){m.winner=ap===1?m.t1:m.t2;setTimeout(()=>playSound("winner"),600);onUpdate(m);return;}
+      if(m[sk]>=legsToWin){m.winner=ap===1?m.t1:m.t2;setTimeout(()=>playSound("winner"),600);onUpdate(m);return;}
       m.legStarter=m.legStarter===1?2:1;m.leg1=501;m.leg2=501;m.history1=[];m.history2=[];
       setAp(m.legStarter);onUpdate(m);return;
     }
@@ -295,9 +303,9 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
     return()=>window.removeEventListener("keydown",onKey);
   });
 
-  const undoThrow=()=>{const m=JSON.parse(JSON.stringify(match));const op=ap===1?2:1;const hk=op===1?"history1":"history2",lk=op===1?"leg1":"leg2";if(!m[hk].length)return;m[lk]+=m[hk].pop();setAp(op);onUpdate(m);};
-  const undoLeg=()=>{if(!match.legs.length)return;const m=JSON.parse(JSON.stringify(match));const l=m.legs.pop();const sk=l.winner===1?"s1":"s2";m[sk]--;m.history1=l.h1;m.history2=l.h2;m.leg1=501-l.h1.reduce((a,b)=>a+b,0);m.leg2=501-l.h2.reduce((a,b)=>a+b,0);m.winner=null;m.legStarter=m.legStarter===1?2:1;setAp(1);onUpdate(m);};
-  const selectStarter=(p)=>{const m=JSON.parse(JSON.stringify(match));m.starter=p;m.legStarter=p;setAp(p);setShowStarter(false);onUpdate(m);};
+  const undoThrow=()=>{const m=structuredClone(match);const op=ap===1?2:1;const hk=op===1?"history1":"history2",lk=op===1?"leg1":"leg2";if(!m[hk].length)return;m[lk]+=m[hk].pop();setAp(op);onUpdate(m);};
+  const undoLeg=()=>{if(!match.legs.length)return;const m=structuredClone(match);const l=m.legs.pop();const sk=l.winner===1?"s1":"s2";m[sk]--;m.history1=l.h1;m.history2=l.h2;m.leg1=501-l.h1.reduce((a,b)=>a+b,0);m.leg2=501-l.h2.reduce((a,b)=>a+b,0);m.winner=null;m.legStarter=m.legStarter===1?2:1;setAp(1);onUpdate(m);};
+  const selectStarter=(p)=>{const m=structuredClone(match);m.starter=p;m.legStarter=p;setAp(p);setShowStarter(false);onUpdate(m);};
 
   const isReady=match.t1!==null&&match.t2!==null;
 
@@ -364,7 +372,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{fontSize:14,color:textLow,marginBottom:20}}>Wer beginnt?</div>
       {[{p:1,n:t1},{p:2,n:t2}].map(({p,n})=><button key={p} onClick={()=>selectStarter(p)} style={{width:"100%",maxWidth:300,padding:"20px 0",marginBottom:12,background:greenDark,border:`1px solid ${greenBdr}`,borderRadius:10,color:green,fontSize:18,fontWeight:700,cursor:"pointer",fontFamily:F}}>{n}</button>)}
-      <button onClick={()=>{const b=new Uint8Array(1);crypto.getRandomValues(b);selectStarter(b[0]<128?1:2);}} style={{marginTop:8,padding:"12px 24px",background:colBlueDk,border:`1px solid ${colBlue}`,borderRadius:8,color:colBlue,fontSize:13,cursor:"pointer",fontFamily:F}}>🎲 Zufällig</button>
+      <button onClick={()=>selectStarter(Math.random()<0.5?1:2)} style={{marginTop:8,padding:"12px 24px",background:colBlueDk,border:`1px solid ${colBlue}`,borderRadius:8,color:colBlue,fontSize:13,cursor:"pointer",fontFamily:F}}>🎲 Zufällig</button>
     </div>
   );
 
@@ -611,7 +619,7 @@ function TvAuto({bracket}){
   },[bracket]);
 
   const focus=live||(pinnedId?getMatch(bracket,pinnedId):null);
-  if(focus)return<><GlobalStyles/><ScoringView match={focus.match} teams={bracket.teams} roundName={focus.round.name} isDoubleOut={focus.round.isDoubleOut} onBack={()=>{}} onUpdate={()=>{}} isTV={true}/></>;
+  if(focus)return<><GlobalStyles/><ScoringView match={focus.match} teams={bracket.teams} roundName={focus.round.name} isDoubleOut={focus.round.isDoubleOut} onBack={()=>{}} onUpdate={()=>{}} isTV={true} legsToWin={bracket.config.legsToWin}/></>;
   return<TvOverview bracket={bracket}/>;
 }
 
@@ -708,7 +716,7 @@ export default function DartTurnier(){
   const back=()=>{setActiveMatchId(null);setPhase("bracket");};
 
   const handleUpdate=(updatedMatch)=>{
-    setBracket(prev=>{const b=JSON.parse(JSON.stringify(prev));setMatchIn(b,updatedMatch);propagateBracket(b);return b;});
+    setBracket(prev=>{const b=structuredClone(prev);setMatchIn(b,updatedMatch);propagateBracket(b);return b;});
   };
 
   const resetTournament=()=>{clear();setBracket(null);setTeamNames(Array(config.teamSize).fill(""));setConfirmReset(false);setPhase("setup");};
@@ -775,7 +783,7 @@ export default function DartTurnier(){
   if((phase==="scoring"||phase==="tv")&&bracket&&activeMatchId){
     const result=getMatch(bracket,activeMatchId);
     if(!result)return null;
-    return<><GlobalStyles/><ScoringView match={result.match} teams={bracket.teams} roundName={result.round.name} isDoubleOut={result.round.isDoubleOut} onBack={back} onUpdate={handleUpdate} isTV={phase==="tv"}/></>;
+    return<><GlobalStyles/><ScoringView match={result.match} teams={bracket.teams} roundName={result.round.name} isDoubleOut={result.round.isDoubleOut} onBack={back} onUpdate={handleUpdate} isTV={phase==="tv"} legsToWin={bracket.config.legsToWin}/></>;
   }
 
   // ── STATS ──

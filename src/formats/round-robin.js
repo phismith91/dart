@@ -6,21 +6,15 @@
  * Generate round robin groups
  * @param {Array} participants - [{id, name, seed}]
  * @param {number} [numGroups] - How many groups
- * @param {string} [seeding] - 'random' | 'snake' | 'manual'
- * @param {Function} [rng] - Random number generator (injectable for tests)
+ * @param {string} [seeding] - 'snake' | 'manual'
  * @returns {object} { groups, numGroups } or { error } on invalid input
  */
-export function generateGroups(participants, numGroups = 1, seeding = 'snake', rng = Math.random) {
+export function generateGroups(participants, numGroups = 1, seeding = 'snake') {
   if (participants.length < 2) return { error: 'NEED_TWO_PARTICIPANTS', message: 'Need at least 2 participants' };
   if (numGroups < 1) return { error: 'NEED_ONE_GROUP', message: 'Need at least 1 group' };
   if (numGroups > participants.length / 2) return { error: 'TOO_MANY_GROUPS', message: 'Too many groups for participant count' };
 
-  let ordered;
-  if (seeding === 'random') {
-    ordered = [...participants].sort(() => rng() - 0.5);
-  } else {
-    ordered = [...participants];
-  }
+  const ordered = [...participants];
 
   const groups = Array.from({ length: numGroups }, () => ({ participants: [], matches: [] }));
 

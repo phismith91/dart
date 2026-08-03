@@ -296,7 +296,7 @@ function buildNameMap(participants) {
 }
 
 function deepCopyPhases(phases) {
-  return JSON.parse(JSON.stringify(phases));
+  return structuredClone(phases);
 }
 
 // ─── Re-exports for convenience ───
