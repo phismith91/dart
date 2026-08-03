@@ -192,7 +192,7 @@ dartforge-engine/
       format: 'round_robin',          // 'single_elim' | 'round_robin'
       groups: 4,                       // Number of groups
       advanceCount: 2,                 // Top X per group advance
-      seeding: 'snake',                // 'snake' | 'random' | 'manual'
+      seeding: 'snake',                // 'snake' | 'manual'
     },
     {
       name: 'Knockout',

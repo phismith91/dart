@@ -264,7 +264,7 @@ function lookupMap(participants) {
 }
 
 function deepCopyBracket(bracket) {
-  return JSON.parse(JSON.stringify(bracket));
+  return structuredClone(bracket);
 }
 
 function getRoundNames(numRounds) {
