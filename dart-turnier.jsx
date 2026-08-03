@@ -43,6 +43,13 @@ const load=async()=>{try{const r=await window.storage.get(SK);return r?JSON.pars
 const clear=async()=>{try{await window.storage.delete(SK);}catch(e){}};
 
 // ═══════════════════════════════════════════
+// THEME (Dark/Light, persistiert in localStorage — unabhängig vom Turnier-Storage)
+// ═══════════════════════════════════════════
+const THEME_KEY="dart-turnier-theme";
+const applyTheme=(t)=>{document.documentElement.dataset.theme=t;try{localStorage.setItem(THEME_KEY,t);}catch(e){}};
+const getInitialTheme=()=>{try{return localStorage.getItem(THEME_KEY)||"dark";}catch(e){return "dark";}};
+
+// ═══════════════════════════════════════════
 // BRACKET ENGINE (dynamic team count)
 // ═══════════════════════════════════════════
 function newMatch(id,t1,t2,roundIdx,isThirdPlace=false){
@@ -166,33 +173,52 @@ function getCheckout(rem,isDO){
 const F  = "'Figtree','Helvetica Neue',sans-serif";     // UI: labels, buttons, body
 const FD = "'Funnel Display','Arial Narrow',sans-serif"; // Display: scores, headlines
 // Surfaces — tinted toward hue 145 (green) for brand cohesion
-const bg        = "oklch(13% 0.006 145)";  // dark charcoal
-const card      = "oklch(17% 0.007 145)";  // card surface
-const surf2     = "oklch(21% 0.006 145)";  // inputs, secondary buttons
-const bdr       = "oklch(28% 0.007 145)";  // default border
-const bdrSoft   = "oklch(21% 0.006 145)";  // subtle dividers
+// Werte kommen aus CSS-Variablen (siehe GlobalStyles) statt fix, damit Dark/Light per data-theme umschaltbar ist
+const bg        = "var(--bg)";
+const card      = "var(--card)";
+const surf2     = "var(--surf2)";
+const bdr       = "var(--bdr)";
+const bdrSoft   = "var(--bdr-soft)";
 // Text — all ≥4.5:1 on `bg` (WCAG AA)
-const textHi    = "oklch(93% 0.003 145)";  // primary   ≈ #eee
-const textMid   = "oklch(72% 0.005 145)";  // secondary ≈ #aaa  (5.8:1)
-const textLow   = "oklch(62% 0.005 145)";  // tertiary  ≈ #888  (4.6:1) — raises #666/#555
-const textOff   = "oklch(32% 0.004 145)";  // disabled  (intentionally low)
+const textHi    = "var(--text-hi)";
+const textMid   = "var(--text-mid)";
+const textLow   = "var(--text-low)";
+const textOff   = "var(--text-off)";
 // Accent — green (win, active, checkout)
-const green     = "oklch(75% 0.17  142)";  // ≈ #6fcf6f
-const greenDark = "oklch(18% 0.04  142)";  // ≈ #1a2a1a
-const greenText = "oklch(83% 0.14  142)";  // ≈ #aee86f
-const greenBdr  = "oklch(38% 0.12  142)";  // ≈ #2d5a2d
+const green     = "var(--green)";
+const greenDark = "var(--green-dark)";
+const greenText = "var(--green-text)";
+const greenBdr  = "var(--green-bdr)";
 // Warning — orange (Double Out, attention)
-const orange     = "oklch(77% 0.14 55)";   // ≈ #f0a050
-const orangeDark = "oklch(17% 0.04 55)";   // ≈ #3a2a1a
+const orange     = "var(--orange)";
+const orangeDark = "var(--orange-dark)";
 // Status
-const colRed    = "oklch(70% 0.18 20)";    // bust / undo  ≈ #ff8888
-const colRedDk  = "oklch(13% 0.04 20)";    // ≈ #2a1a1a
-const colBlue   = "oklch(67% 0.14 270)";   // random / info ≈ #8888ff
-const colBlueDk = "oklch(13% 0.03 270)";   // ≈ #1a1a2a
+const colRed    = "var(--col-red)";
+const colRedDk  = "var(--col-red-dk)";
+const colBlue   = "var(--col-blue)";
+const colBlueDk = "var(--col-blue-dk)";
 
 // ─── Global Styles (fonts + focus-visible + button reset) ───
 function GlobalStyles(){
   return<style>{`
+    :root{
+      --bg: oklch(13% 0.006 145); --card: oklch(17% 0.007 145); --surf2: oklch(21% 0.006 145);
+      --bdr: oklch(28% 0.007 145); --bdr-soft: oklch(21% 0.006 145);
+      --text-hi: oklch(93% 0.003 145); --text-mid: oklch(72% 0.005 145); --text-low: oklch(62% 0.005 145); --text-off: oklch(32% 0.004 145);
+      --green: oklch(75% 0.17 142); --green-dark: oklch(18% 0.04 142); --green-text: oklch(83% 0.14 142); --green-bdr: oklch(38% 0.12 142);
+      --orange: oklch(77% 0.14 55); --orange-dark: oklch(17% 0.04 55);
+      --col-red: oklch(70% 0.18 20); --col-red-dk: oklch(13% 0.04 20);
+      --col-blue: oklch(67% 0.14 270); --col-blue-dk: oklch(13% 0.03 270);
+    }
+    :root[data-theme="light"]{
+      --bg: oklch(97% 0.004 145); --card: oklch(100% 0 0); --surf2: oklch(94% 0.005 145);
+      --bdr: oklch(83% 0.006 145); --bdr-soft: oklch(89% 0.005 145);
+      --text-hi: oklch(20% 0.006 145); --text-mid: oklch(40% 0.006 145); --text-low: oklch(50% 0.006 145); --text-off: oklch(78% 0.004 145);
+      --green: oklch(45% 0.16 142); --green-dark: oklch(93% 0.07 142); --green-text: oklch(32% 0.13 142); --green-bdr: oklch(70% 0.13 142);
+      --orange: oklch(48% 0.13 55); --orange-dark: oklch(93% 0.07 55);
+      --col-red: oklch(50% 0.18 20); --col-red-dk: oklch(93% 0.06 20);
+      --col-blue: oklch(48% 0.14 270); --col-blue-dk: oklch(93% 0.05 270);
+    }
     *:focus-visible{outline:2px solid ${green};outline-offset:2px;border-radius:3px;}
     button{font-family:${F};color:inherit;cursor:pointer;text-align:inherit;min-height:44px;box-sizing:border-box;transition:filter 130ms ease,transform 100ms ease,background 150ms ease,border-color 150ms ease;}
     button:not(:disabled):hover{filter:brightness(1.12);}
@@ -314,7 +340,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV}){
           {sides.map(({p,name,rem:r,s,co})=>{
             const active=turnPlayer===p;
             return(
-              <div key={p} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"5vh 6vw",background:active?"oklch(19% 0.009 145)":"oklch(15% 0.005 145)",borderTop:`4px solid ${active?green:bdrSoft}`,transition:"background 400ms ease,border-color 400ms ease",position:"relative"}}>
+              <div key={p} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"5vh 6vw",background:active?card:bg,borderTop:`4px solid ${active?green:bdrSoft}`,transition:"background 400ms ease,border-color 400ms ease",position:"relative"}}>
                 <div style={{display:"flex",gap:16,marginBottom:"5vh"}}>
                   {[0,1].map(i=><div key={i} style={{width:30,height:30,borderRadius:"50%",background:i<s?green:bdr,border:`3px solid ${i<s?green:textOff}`,transition:"background 300ms ease"}}/>)}
                 </div>
@@ -522,7 +548,7 @@ function TvMatchCard({match,teams}){
   const started=ready&&(match.history1.length>0||match.history2.length>0||match.legs.length>0);
   const bye=!ready&&done;
   return(
-    <div style={{background:done?greenDark:started?"oklch(19% 0.02 145)":card,border:`1px solid ${done?greenBdr:started?green:bdr}`,borderRadius:10,padding:"10px 14px",position:"relative"}}>
+    <div style={{background:done?greenDark:started?surf2:card,border:`1px solid ${done?greenBdr:started?green:bdr}`,borderRadius:10,padding:"10px 14px",position:"relative"}}>
       {started&&!done&&<div style={{position:"absolute",top:8,right:10,fontSize:9,color:green,display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:"50%",background:green,display:"inline-block"}}/>LIVE</div>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
         <span style={{color:match.winner===match.t1?green:textHi,fontSize:16,fontWeight:match.winner===match.t1?800:600,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t1}</span>
@@ -602,6 +628,10 @@ export default function DartTurnier(){
   const[activeMatchId,setActiveMatchId]=useState(null);
   const[sounds,setSounds]=useState({});
   const[tvBlocked,setTvBlocked]=useState(false);
+  const[theme,setTheme]=useState(getInitialTheme);
+
+  useEffect(()=>{applyTheme(theme);},[theme]);
+  const toggleTheme=()=>setTheme(t=>t==="dark"?"light":"dark");
 
   useEffect(()=>{(async()=>{
     const tvParam=new URLSearchParams(window.location.search).get('tv');
@@ -687,8 +717,9 @@ export default function DartTurnier(){
 
   // ── SETUP ──
   if(phase==="setup")return(
-    <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,display:"flex",flexDirection:"column",alignItems:"center",padding:"24px 16px"}}>
+    <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,display:"flex",flexDirection:"column",alignItems:"center",padding:"24px 16px",position:"relative"}}>
       <GlobalStyles/>
+      <button onClick={toggleTheme} aria-label={theme==="dark"?"Zu Hellmodus wechseln":"Zu Dunkelmodus wechseln"} style={{position:"absolute",top:16,right:16,background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>{theme==="dark"?"☀️":"🌙"}</button>
       <div style={{textAlign:"center",marginBottom:20}}><div style={{fontSize:40,marginBottom:4}}>🎯</div><h1 style={{fontFamily:FD,fontSize:22,fontWeight:800,color:textHi,margin:0,letterSpacing:"-0.01em"}}>Dart Turnier</h1><p style={{fontFamily:F,color:textLow,fontSize:11,margin:"4px 0 0",letterSpacing:"0.05em"}}>SETUP</p></div>
 
       <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:12,padding:16,width:"100%",maxWidth:340,marginBottom:12}}>
@@ -774,6 +805,7 @@ export default function DartTurnier(){
           <button onClick={()=>setPhase("settings")} aria-label="Sounds konfigurieren" style={{background:surf2,border:`1px solid ${bdr}`,color:textLow,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11}}>Sounds</button>
           <button onClick={()=>setShowHelp(true)} aria-label="Hilfe anzeigen" style={{background:surf2,border:`1px solid ${bdr}`,color:textLow,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11}}>?</button>
           <button onClick={()=>setConfirmReset(true)} aria-label="Turnier zurücksetzen" style={{background:surf2,border:`1px solid ${bdr}`,color:textLow,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11}}>Neu</button>
+          <button onClick={toggleTheme} aria-label={theme==="dark"?"Zu Hellmodus wechseln":"Zu Dunkelmodus wechseln"} style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>{theme==="dark"?"☀️":"🌙"}</button>
         </div>
       </div>
 
