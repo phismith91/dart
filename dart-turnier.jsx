@@ -292,18 +292,24 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,leg
     setAp(ap===1?2:1);onUpdate(m);
   };
 
-  // Enter trägt die aktuell eingegebene Aufnahme ein (Numpad-Rest oder Darts-Summe) statt Button-Klick
-  useEffect(()=>{
+  // Enter trägt die aktuell eingegebene Aufnahme ein (Numpad-Rest oder Darts-Summe) statt Button-Klick.
+  // Listener wird nur einmal gebunden (nicht bei jedem Tastendruck/Render neu) — liest den aktuellen
+  // Stand über die Ref, die bei jedem Render aktualisiert wird (billig, kein Re-Subscribe nötig).
+  const onEnterRef=useRef();
+  onEnterRef.current=()=>{
     if(isTV||showStarter||match.winner!==null)return;
+    if(tab===4&&npad){addScore(Number(npad));setNpad("");}
+    else if(tab===5&&darts.length){addScore(dTotal);setDarts([]);}
+  };
+  useEffect(()=>{
     const onKey=(e)=>{
       if(e.key!=="Enter")return;
       e.preventDefault(); // sonst aktiviert der Browser zusätzlich den zuletzt fokussierten Button (doppelte Eintragung)
-      if(tab===4&&npad){addScore(Number(npad));setNpad("");}
-      else if(tab===5&&darts.length){addScore(dTotal);setDarts([]);}
+      onEnterRef.current();
     };
     window.addEventListener("keydown",onKey);
     return()=>window.removeEventListener("keydown",onKey);
-  });
+  },[]);
 
   const undoThrow=()=>{const m=structuredClone(match);const op=ap===1?2:1;const hk=op===1?"history1":"history2",lk=op===1?"leg1":"leg2";if(!m[hk].length)return;m[lk]+=m[hk].pop();setAp(op);onUpdate(m);};
   const undoLeg=()=>{if(!match.legs.length)return;const m=structuredClone(match);const l=m.legs.pop();const sk=l.winner===1?"s1":"s2";m[sk]--;m.history1=l.h1;m.history2=l.h2;m.leg1=501-l.h1.reduce((a,b)=>a+b,0);m.leg2=501-l.h2.reduce((a,b)=>a+b,0);m.winner=null;m.legStarter=m.legStarter===1?2:1;setAp(1);onUpdate(m);};
