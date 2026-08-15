@@ -643,6 +643,11 @@ function TvOverview({bracket}){
   const champion=getChampion(bracket);
   const mainRounds=bracket.rounds.filter(r=>!r.matches[0]?.isThirdPlace);
   const thirdRound=bracket.rounds.find(r=>r.matches[0]?.isThirdPlace);
+  // Spaltenbreite schrumpft fließend mit der Rundenzahl statt fest 260px zu bleiben — sonst
+  // läuft ein größeres Turnier (4+ Runden) auf schmaleren TVs/Beamern in horizontales Scrollen,
+  // das ein Zuschauer ohne Maus/Touch am Screen nicht bedienen kann.
+  const totalCols=mainRounds.length+(thirdRound?1:0);
+  const colWidth=`clamp(150px, ${Math.max(12,Math.floor(88/totalCols))}vw, 260px)`;
   return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"24px 32px",display:"flex",flexDirection:"column",gap:20,position:"relative"}}>
       <GlobalStyles/>
@@ -652,16 +657,16 @@ function TvOverview({bracket}){
           <div style={{fontFamily:FD,fontSize:22,fontWeight:800,color:green}}>🏆 {champion} gewinnt!</div>
           :<div style={{fontSize:13,color:textLow}}>{bracket.config.date}</div>}
       </div>
-      <div style={{display:"flex",gap:24,overflowX:"auto",flex:1}}>
+      <div style={{display:"flex",gap:totalCols>4?12:24,overflowX:"auto",flex:1}}>
         {mainRounds.map((round,rIdx)=>(
-          <div key={rIdx} style={{display:"flex",flexDirection:"column",gap:14,minWidth:260}}>
+          <div key={rIdx} style={{display:"flex",flexDirection:"column",gap:14,flex:"1 1 0",minWidth:colWidth}}>
             <div style={{textAlign:"center",paddingBottom:6,borderBottom:`2px solid ${bdrSoft}`,fontSize:16,fontWeight:700,color:round.isDoubleOut?orange:green}}>{round.name}</div>
             <div style={{display:"flex",flexDirection:"column",gap:14,justifyContent:"space-around",flex:1}}>
               {round.matches.map(m=><TvMatchCard key={m.id} match={m} teams={bracket.teams}/>)}
             </div>
           </div>
         ))}
-        {thirdRound&&<div style={{display:"flex",flexDirection:"column",gap:14,minWidth:260}}>
+        {thirdRound&&<div style={{display:"flex",flexDirection:"column",gap:14,flex:"1 1 0",minWidth:colWidth}}>
           <div style={{textAlign:"center",paddingBottom:6,borderBottom:`2px solid ${bdrSoft}`,fontSize:16,fontWeight:700,color:colBlue}}>{thirdRound.name}</div>
           <div style={{display:"flex",flexDirection:"column",gap:14,justifyContent:"center",flex:1}}>
             {thirdRound.matches.map(m=><TvMatchCard key={m.id} match={m} teams={bracket.teams}/>)}
