@@ -181,7 +181,8 @@ const card      = "var(--card)";
 const surf2     = "var(--surf2)";
 const bdr       = "var(--bdr)";
 const bdrSoft   = "var(--bdr-soft)";
-// Text — all ≥4.5:1 on `bg` (WCAG AA)
+// Text — hi/mid/low ≥4.5:1 on `bg` (WCAG AA); text-off ist bewusst die schwächste Stufe
+// (disabled/dezente Labels), hält aber ≥3:1 (WCAG AA für UI-Komponenten/große Schrift)
 const textHi    = "var(--text-hi)";
 const textMid   = "var(--text-mid)";
 const textLow   = "var(--text-low)";
@@ -215,7 +216,7 @@ const GLOBAL_STYLES_CSS=`
     :root{
       --bg: oklch(13% 0.006 145); --card: oklch(17% 0.007 145); --surf2: oklch(21% 0.006 145);
       --bdr: oklch(28% 0.007 145); --bdr-soft: oklch(21% 0.006 145);
-      --text-hi: oklch(93% 0.003 145); --text-mid: oklch(72% 0.005 145); --text-low: oklch(62% 0.005 145); --text-off: oklch(32% 0.004 145);
+      --text-hi: oklch(93% 0.003 145); --text-mid: oklch(72% 0.005 145); --text-low: oklch(62% 0.005 145); --text-off: oklch(48% 0.004 145);
       --green: oklch(75% 0.17 142); --green-dark: oklch(18% 0.04 142); --green-text: oklch(83% 0.14 142); --green-bdr: oklch(38% 0.12 142);
       --orange: oklch(77% 0.14 55); --orange-dark: oklch(17% 0.04 55);
       --col-red: oklch(70% 0.18 20); --col-red-dk: oklch(13% 0.04 20);
@@ -224,7 +225,7 @@ const GLOBAL_STYLES_CSS=`
     :root[data-theme="light"]{
       --bg: oklch(97% 0.004 145); --card: oklch(100% 0 0); --surf2: oklch(94% 0.005 145);
       --bdr: oklch(83% 0.006 145); --bdr-soft: oklch(89% 0.005 145);
-      --text-hi: oklch(20% 0.006 145); --text-mid: oklch(40% 0.006 145); --text-low: oklch(50% 0.006 145); --text-off: oklch(78% 0.004 145);
+      --text-hi: oklch(20% 0.006 145); --text-mid: oklch(40% 0.006 145); --text-low: oklch(50% 0.006 145); --text-off: oklch(60% 0.004 145);
       --green: oklch(45% 0.16 142); --green-dark: oklch(93% 0.07 142); --green-text: oklch(32% 0.13 142); --green-bdr: oklch(70% 0.13 142);
       --orange: oklch(48% 0.13 55); --orange-dark: oklch(93% 0.07 55);
       --col-red: oklch(50% 0.18 20); --col-red-dk: oklch(93% 0.06 20);
