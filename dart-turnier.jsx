@@ -575,13 +575,14 @@ function TvMatchCard({match,teams}){
   );
 }
 
-function TvOverview({bracket}){
+function TvOverview({bracket,theme,toggleTheme}){
   const champion=getChampion(bracket);
   const mainRounds=bracket.rounds.filter(r=>!r.matches[0]?.isThirdPlace);
   const thirdRound=bracket.rounds.find(r=>r.matches[0]?.isThirdPlace);
   return(
-    <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"24px 32px",display:"flex",flexDirection:"column",gap:20}}>
+    <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"24px 32px",display:"flex",flexDirection:"column",gap:20,position:"relative"}}>
       <GlobalStyles/>
+      <button onClick={toggleTheme} aria-label={theme==="dark"?"Zu Hellmodus wechseln":"Zu Dunkelmodus wechseln"} style={{position:"absolute",top:16,right:16,background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>{theme==="dark"?"☀️":"🌙"}</button>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
         <div style={{fontFamily:FD,fontSize:28,fontWeight:800}}>{bracket.config.name}</div>
         {champion?
@@ -611,7 +612,7 @@ function TvOverview({bracket}){
 // Ein Screen fürs Publikum: zeigt Bracket-Übersicht, springt automatisch ins
 // laufende Match (Vollbild) sobald eins startet, und kurz nach Spielende
 // (Sieger-Einblendung) wieder zurück zur Übersicht.
-function TvAuto({bracket}){
+function TvAuto({bracket,theme,toggleTheme}){
   const[pinnedId,setPinnedId]=useState(null);
   const live=findLiveMatch(bracket);
 
@@ -622,7 +623,7 @@ function TvAuto({bracket}){
 
   const focus=live||(pinnedId?getMatch(bracket,pinnedId):null);
   if(focus)return<><GlobalStyles/><ScoringView match={focus.match} teams={bracket.teams} roundName={focus.round.name} isDoubleOut={focus.round.isDoubleOut} onBack={()=>{}} onUpdate={()=>{}} isTV={true} legsToWin={bracket.config.legsToWin}/></>;
-  return<TvOverview bracket={bracket}/>;
+  return<TvOverview bracket={bracket} theme={theme} toggleTheme={toggleTheme}/>;
 }
 
 // ═══════════════════════════════════════════
@@ -659,6 +660,7 @@ export default function DartTurnier(){
     const tvParam=new URLSearchParams(window.location.search).get('tv');
     if(!tvParam)return;
     const onSt=(e)=>{
+      if(e.key===THEME_KEY){if(e.newValue)setTheme(e.newValue);return;}
       if(e.key!==SK||!e.newValue)return;
       try{
         const s=JSON.parse(e.newValue);
@@ -779,7 +781,7 @@ export default function DartTurnier(){
   );
 
   // ── TV-ÜBERSICHT (dauerhafter Zuschauer-Screen) ──
-  if(phase==="tv-overview"&&bracket)return<TvAuto bracket={bracket}/>;
+  if(phase==="tv-overview"&&bracket)return<TvAuto bracket={bracket} theme={theme} toggleTheme={toggleTheme}/>;
 
   // ── SCORING / TV ──
   if((phase==="scoring"||phase==="tv")&&bracket&&activeMatchId){
