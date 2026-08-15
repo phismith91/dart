@@ -547,6 +547,35 @@ function MatchCard({match,teams,onOpen}){
   </div>;
 }
 
+function RulesModal({config,onClose}){
+  const bo=config.legsToWin*2-1;
+  return(
+    <div style={{position:"fixed",inset:0,background:"oklch(0% 0 0 / 0.72)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
+      <div style={{background:card,border:`1px solid ${bdrSoft}`,borderRadius:14,padding:"20px 24px",maxWidth:380,width:"100%"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <span style={{fontSize:14,fontWeight:700,color:textHi,fontFamily:F}}>Turnier-Regeln</span>
+          <button onClick={onClose} aria-label="Schließen" style={{background:"none",border:"none",color:textLow,fontSize:22,cursor:"pointer",lineHeight:1,padding:"0 0 0 16px"}}>×</button>
+        </div>
+        <div style={{fontSize:11,color:textLow,lineHeight:1.9,fontFamily:F}}>
+          <div style={{color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>SPIEL</div>
+          <div>Jedes Leg startet bei <span style={{color:greenText}}>501</span> — runterzählen bis exakt 0.</div>
+          <div>Überwerfen (unter 0 oder auf 1 bei Double Out) = <span style={{color:colRed}}>Bust</span>, Aufnahme zählt nicht.</div>
+          <div style={{marginTop:12,color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>CHECKOUT</div>
+          <div><span style={{color:green}}>Vorrunden — Single Out</span>: letzter Dart beliebig.</div>
+          {config.finalDoubleOut&&<div><span style={{color:orange}}>Finale{config.thirdPlace?" & Spiel um Platz 3":""} — Double Out</span>: letzter Dart muss Double oder Bull sein.</div>}
+          <div style={{marginTop:12,color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>MATCH</div>
+          <div>Best of {bo} Legs — wer zuerst <span style={{color:greenText}}>{config.legsToWin}</span> Legs gewinnt, gewinnt das Match.</div>
+          <div>Wer beginnt wechselt nach jedem Leg.</div>
+          <div style={{marginTop:12,color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>TURNIER</div>
+          <div>K.-o.-System, Paarungen zufällig ausgelost.</div>
+          <div>Freilos (ungerade Teamzahl) steigt kampflos auf.</div>
+          {config.thirdPlace&&<div>Beide Halbfinal-Verlierer spielen um Platz 3.</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════
 // TV-ÜBERSICHT (dauerhafter Zuschauer-Screen, alle Matches auf einen Blick)
 // ═══════════════════════════════════════════
@@ -576,13 +605,18 @@ function TvMatchCard({match,teams}){
 }
 
 function TvOverview({bracket,theme,toggleTheme}){
+  const[showRules,setShowRules]=useState(false);
   const champion=getChampion(bracket);
   const mainRounds=bracket.rounds.filter(r=>!r.matches[0]?.isThirdPlace);
   const thirdRound=bracket.rounds.find(r=>r.matches[0]?.isThirdPlace);
   return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"24px 32px",display:"flex",flexDirection:"column",gap:20,position:"relative"}}>
       <GlobalStyles/>
-      <button onClick={toggleTheme} aria-label={theme==="dark"?"Zu Hellmodus wechseln":"Zu Dunkelmodus wechseln"} style={{position:"absolute",top:16,right:16,background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>{theme==="dark"?"☀️":"🌙"}</button>
+      <div style={{position:"absolute",top:16,right:16,display:"flex",gap:8}}>
+        <button onClick={()=>setShowRules(true)} aria-label="Regeln anzeigen" style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>📜 Regeln</button>
+        <button onClick={toggleTheme} aria-label={theme==="dark"?"Zu Hellmodus wechseln":"Zu Dunkelmodus wechseln"} style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>{theme==="dark"?"☀️":"🌙"}</button>
+      </div>
+      {showRules&&<RulesModal config={bracket.config} onClose={()=>setShowRules(false)}/>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
         <div style={{fontFamily:FD,fontSize:28,fontWeight:800}}>{bracket.config.name}</div>
         {champion?
