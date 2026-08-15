@@ -604,19 +604,13 @@ function TvMatchCard({match,teams}){
   );
 }
 
-function TvOverview({bracket,theme,toggleTheme}){
-  const[showRules,setShowRules]=useState(false);
+function TvOverview({bracket}){
   const champion=getChampion(bracket);
   const mainRounds=bracket.rounds.filter(r=>!r.matches[0]?.isThirdPlace);
   const thirdRound=bracket.rounds.find(r=>r.matches[0]?.isThirdPlace);
   return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"24px 32px",display:"flex",flexDirection:"column",gap:20,position:"relative"}}>
       <GlobalStyles/>
-      <div style={{position:"absolute",top:16,right:16,display:"flex",gap:8}}>
-        <button onClick={()=>setShowRules(true)} aria-label="Regeln anzeigen" style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>📜 Regeln</button>
-        <button onClick={toggleTheme} aria-label={theme==="dark"?"Zu Hellmodus wechseln":"Zu Dunkelmodus wechseln"} style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>{theme==="dark"?"☀️":"🌙"}</button>
-      </div>
-      {showRules&&<RulesModal config={bracket.config} onClose={()=>setShowRules(false)}/>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
         <div style={{fontFamily:FD,fontSize:28,fontWeight:800}}>{bracket.config.name}</div>
         {champion?
@@ -648,6 +642,7 @@ function TvOverview({bracket,theme,toggleTheme}){
 // (Sieger-Einblendung) wieder zurück zur Übersicht.
 function TvAuto({bracket,theme,toggleTheme}){
   const[pinnedId,setPinnedId]=useState(null);
+  const[showRules,setShowRules]=useState(false);
   const live=findLiveMatch(bracket);
 
   useEffect(()=>{
@@ -656,8 +651,13 @@ function TvAuto({bracket,theme,toggleTheme}){
   },[bracket]);
 
   const focus=live||(pinnedId?getMatch(bracket,pinnedId):null);
-  if(focus)return<><GlobalStyles/><ScoringView match={focus.match} teams={bracket.teams} roundName={focus.round.name} isDoubleOut={focus.round.isDoubleOut} onBack={()=>{}} onUpdate={()=>{}} isTV={true} legsToWin={bracket.config.legsToWin}/></>;
-  return<TvOverview bracket={bracket} theme={theme} toggleTheme={toggleTheme}/>;
+  const controls=<div style={{position:"fixed",top:16,right:16,zIndex:150,display:"flex",gap:8}}>
+    <button onClick={()=>setShowRules(true)} aria-label="Regeln anzeigen" style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>📜 Regeln</button>
+    <button onClick={toggleTheme} aria-label={theme==="dark"?"Zu Hellmodus wechseln":"Zu Dunkelmodus wechseln"} style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>{theme==="dark"?"☀️":"🌙"}</button>
+  </div>;
+  const rules=showRules&&<RulesModal config={bracket.config} onClose={()=>setShowRules(false)}/>;
+  if(focus)return<><GlobalStyles/>{controls}{rules}<ScoringView match={focus.match} teams={bracket.teams} roundName={focus.round.name} isDoubleOut={focus.round.isDoubleOut} onBack={()=>{}} onUpdate={()=>{}} isTV={true} legsToWin={bracket.config.legsToWin}/></>;
+  return<>{controls}{rules}<TvOverview bracket={bracket}/></>;
 }
 
 // ═══════════════════════════════════════════
