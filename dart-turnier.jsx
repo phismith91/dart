@@ -52,6 +52,8 @@ const getInitialTheme=()=>{try{return localStorage.getItem(THEME_KEY)||"dark";}c
 // ═══════════════════════════════════════════
 // BRACKET ENGINE (dynamic team count)
 // ═══════════════════════════════════════════
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
 function newMatch(id,t1,t2,roundIdx,isThirdPlace=false){
   return{id,t1,t2,roundIdx,isThirdPlace,legs:[],leg1:501,leg2:501,s1:0,s2:0,winner:null,history1:[],history2:[],starter:1,legStarter:1};
 }
@@ -701,7 +703,7 @@ export default function DartTurnier(){
   const updateTeamSize=(size)=>{setConfig(c=>({...c,teamSize:size}));setTeamNames(Array(size).fill(""));};
 
   const startTournament=()=>{
-    const names=teamNames.map((n,i)=>n.trim()||`Team ${i+1}`);
+    const names=shuffle(teamNames.map((n,i)=>n.trim()||`Team ${i+1}`));
     const b=buildBracket(names,config);
     propagateBracket(b); // Freilose aus Runde 1 sofort weiterreichen
     setBracket(b);setPhase("bracket");
