@@ -551,25 +551,28 @@ function RulesModal({config,onClose}){
   const bo=config.legsToWin*2-1;
   return(
     <div style={{position:"fixed",inset:0,background:"oklch(0% 0 0 / 0.72)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
-      <div style={{background:card,border:`1px solid ${bdrSoft}`,borderRadius:14,padding:"20px 24px",maxWidth:380,width:"100%"}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:card,border:`1px solid ${bdrSoft}`,borderRadius:14,padding:"20px 24px",maxWidth:440,width:"100%",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
           <span style={{fontSize:14,fontWeight:700,color:textHi,fontFamily:F}}>Turnier-Regeln</span>
           <button onClick={onClose} aria-label="Schließen" style={{background:"none",border:"none",color:textLow,fontSize:22,cursor:"pointer",lineHeight:1,padding:"0 0 0 16px"}}>×</button>
         </div>
         <div style={{fontSize:11,color:textLow,lineHeight:1.9,fontFamily:F}}>
           <div style={{color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>SPIEL</div>
-          <div>Jedes Leg startet bei <span style={{color:greenText}}>501</span> — runterzählen bis exakt 0.</div>
-          <div>Überwerfen (unter 0 oder auf 1 bei Double Out) = <span style={{color:colRed}}>Bust</span>, Aufnahme zählt nicht.</div>
+          <div>Jedes Leg startet bei <span style={{color:greenText}}>501</span> Punkten, runtergezählt bis exakt 0.</div>
+          <div>Eine Aufnahme sind 3 Darts (weniger, wenn vorher schon exakt 0 erreicht).</div>
+          <div>Geworfene Punkte werden direkt vom Rest abgezogen — höchste Kombination pro Aufnahme ist 180 (3× Triple 20).</div>
+          <div>Rest unter 0 oder genau 1 (bei Double Out unmöglich fertigzuspielen) = <span style={{color:colRed}}>Bust</span>: die ganze Aufnahme zählt nicht, Rest bleibt wie vor dem Wurf.</div>
           <div style={{marginTop:12,color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>CHECKOUT</div>
-          <div><span style={{color:green}}>Vorrunden — Single Out</span>: letzter Dart beliebig.</div>
-          {config.finalDoubleOut&&<div><span style={{color:orange}}>Finale{config.thirdPlace?" & Spiel um Platz 3":""} — Double Out</span>: letzter Dart muss Double oder Bull sein.</div>}
+          <div><span style={{color:green}}>Vorrunden — Single Out</span>: letzter Dart darf auf jedes Feld gehen, Hauptsache Rest exakt 0.</div>
+          {config.finalDoubleOut&&<div><span style={{color:orange}}>Finale{config.thirdPlace?" & Spiel um Platz 3":""} — Double Out</span>: letzter Dart muss auf ein Doppelfeld oder Bullseye (Bull = 50, zählt als Doppel). Landet der letzte Dart auf Single/Triple statt Doppel obwohl Rest 0 wäre → ebenfalls Bust.</div>}
           <div style={{marginTop:12,color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>MATCH</div>
-          <div>Best of {bo} Legs — wer zuerst <span style={{color:greenText}}>{config.legsToWin}</span> Legs gewinnt, gewinnt das Match.</div>
-          <div>Wer beginnt wechselt nach jedem Leg.</div>
+          <div>Best of {bo} Legs — wer zuerst <span style={{color:greenText}}>{config.legsToWin}</span> Legs gewinnt, gewinnt das Match. Danach ist Schluss, auch wenn rechnerisch noch Legs offen wären.</div>
+          <div>Wer im 1. Leg beginnt, wird vor dem Match festgelegt (Auswahl oder Zufall). Danach wechselt das Anwurfrecht nach jedem Leg.</div>
           <div style={{marginTop:12,color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>TURNIER</div>
-          <div>K.-o.-System, Paarungen zufällig ausgelost.</div>
-          <div>Freilos (ungerade Teamzahl) steigt kampflos auf.</div>
-          {config.thirdPlace&&<div>Beide Halbfinal-Verlierer spielen um Platz 3.</div>}
+          <div>K.-o.-System — einmal verloren bedeutet raus (außer Halbfinal-Verlierer, siehe unten).</div>
+          <div>Paarungen werden vor Turnierstart zufällig ausgelost, auch die erste Runde.</div>
+          <div>Freilos (bei ungerader Teamzahl) steigt ohne Spiel automatisch in die nächste Runde auf.</div>
+          {config.thirdPlace&&<div>Beide Halbfinal-Verlierer spielen zusätzlich gegeneinander um Platz 3.</div>}
         </div>
       </div>
     </div>
