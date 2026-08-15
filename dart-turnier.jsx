@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as Tone from "tone";
 
 // ═══════════════════════════════════════════
@@ -443,14 +443,14 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,leg
       {bustMsg&&<div aria-live="assertive" style={{textAlign:"center",padding:"4px 0",color:colRed,fontSize:18,fontWeight:800}}>{bustMsg}</div>}
       <div style={{borderBottom:`1px solid ${bdrSoft}`}}>
         <div role="tablist" style={{display:"flex",padding:"0 8px"}}>
-          {[{id:0,l:"Favoriten"},{id:5,l:"Darts"},{id:4,l:"Numpad"}].map(t=><button key={t.id} role="tab" aria-selected={tab===t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:"6px 0",fontSize:11,background:"transparent",border:"none",borderBottom:tab===t.id?`2px solid ${green}`:"2px solid transparent",color:tab===t.id?green:textLow,cursor:"pointer",fontFamily:F,fontWeight:tab===t.id?700:400}}>{t.l}</button>)}
+          {[{id:0,l:"Favoriten"},{id:5,l:"Darts"},{id:4,l:"Numpad"}].map(t=><button key={t.id} id={`tab-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls="scoring-tabpanel" onClick={()=>setTab(t.id)} style={{flex:1,padding:"6px 0",fontSize:11,background:"transparent",border:"none",borderBottom:tab===t.id?`2px solid ${green}`:"2px solid transparent",color:tab===t.id?green:textLow,cursor:"pointer",fontFamily:F,fontWeight:tab===t.id?700:400}}>{t.l}</button>)}
           <button onClick={()=>{const n=!showGrid;setShowGrid(n);if(n&&![1,2,3].includes(tab))setTab(1);if(!n&&[1,2,3].includes(tab))setTab(0);}} aria-expanded={showGrid} style={{padding:"6px 10px",fontSize:11,background:"transparent",border:"none",borderBottom:[1,2,3].includes(tab)?`2px solid ${green}`:"2px solid transparent",color:[1,2,3].includes(tab)?green:textLow,cursor:"pointer",fontFamily:F,fontWeight:[1,2,3].includes(tab)?700:400}}>Zahl {showGrid?"▲":"▼"}</button>
         </div>
         {showGrid&&<div role="tablist" style={{display:"flex",padding:"0 8px 4px"}}>
-          {[{id:1,l:"0–60"},{id:2,l:"61–120"},{id:3,l:"121–180"}].map(t=><button key={t.id} role="tab" aria-selected={tab===t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:"4px 0",fontSize:10,background:"transparent",border:"none",borderBottom:tab===t.id?`2px solid ${green}`:"2px solid transparent",color:tab===t.id?green:textOff,cursor:"pointer",fontFamily:F,fontWeight:tab===t.id?600:400}}>{t.l}</button>)}
+          {[{id:1,l:"0–60"},{id:2,l:"61–120"},{id:3,l:"121–180"}].map(t=><button key={t.id} id={`tab-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls="scoring-tabpanel" onClick={()=>setTab(t.id)} style={{flex:1,padding:"4px 0",fontSize:10,background:"transparent",border:"none",borderBottom:tab===t.id?`2px solid ${green}`:"2px solid transparent",color:tab===t.id?green:textOff,cursor:"pointer",fontFamily:F,fontWeight:tab===t.id?600:400}}>{t.l}</button>)}
         </div>}
       </div>
-      <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:250,overflowY:"auto"}}>
+      <div id="scoring-tabpanel" role="tabpanel" aria-labelledby={`tab-${tab}`} style={{flex:1,display:"flex",flexDirection:"column",minHeight:250,overflowY:"auto"}}>
         {tab===5&&renderDarts()}{tab===0&&renderFavs()}{tab===1&&renderGrid(0,60)}{tab===2&&renderGrid(61,120)}{tab===3&&renderGrid(121,180)}{tab===4&&renderNumpad()}
       </div>
     </div>
@@ -465,7 +465,7 @@ function StatsView({bracket,onBack}){
   const best=stats[0];
   return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"16px 12px"}}>
-      <div style={{display:"flex",alignItems:"center",marginBottom:16}}><button onClick={onBack} aria-label="Zurück" style={{background:"none",border:"none",color:textLow,fontSize:20,cursor:"pointer",padding:"0 12px 0 0"}}>←</button><span style={{fontSize:14,fontWeight:700}}>Statistiken</span></div>
+      <div style={{display:"flex",alignItems:"center",marginBottom:16}}><button onClick={onBack} aria-label="Zurück" style={{background:"none",border:"none",color:textLow,fontSize:20,cursor:"pointer",padding:"0 12px 0 0"}}>←</button><h2 style={{fontSize:14,fontWeight:700,margin:0}}>Statistiken</h2></div>
       {best&&best.totalThrows>0&&<div style={{textAlign:"center",padding:"14px",marginBottom:14,background:greenDark,border:`1px solid ${greenBdr}`,borderRadius:12}}><div className="label-upper" style={{fontSize:10,color:greenText}}>BESTES TEAM (Ø)</div><div style={{fontFamily:FD,fontSize:20,fontWeight:800,marginTop:4}}>{best.name}</div><div style={{fontSize:13,color:green,marginTop:2}}>Ø {best.avg} pro Aufnahme</div></div>}
       {stats.filter(s=>s.totalThrows>0||s.matchesWon>0).map((s,i)=><div key={i} style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,padding:"12px 14px",marginBottom:8}}>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontFamily:FD,fontSize:14,fontWeight:700,color:textHi}}>{s.name}</span><span className="score-num" style={{fontSize:12,color:green}}>{s.totalThrows>0?`Ø ${s.avg}`:"—"}</span></div>
@@ -483,7 +483,7 @@ function SettingsView({sounds,onSave,onBack}){
   const[s,setS]=useState({...sounds});
   return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"16px 12px"}}>
-      <div style={{display:"flex",alignItems:"center",marginBottom:16}}><button onClick={onBack} aria-label="Zurück" style={{background:"none",border:"none",color:textLow,fontSize:20,cursor:"pointer",padding:"0 12px 0 0"}}>←</button><span style={{fontSize:14,fontWeight:700}}>Sounds</span></div>
+      <div style={{display:"flex",alignItems:"center",marginBottom:16}}><button onClick={onBack} aria-label="Zurück" style={{background:"none",border:"none",color:textLow,fontSize:20,cursor:"pointer",padding:"0 12px 0 0"}}>←</button><h2 style={{fontSize:14,fontWeight:700,margin:0}}>Sounds</h2></div>
       <p style={{fontSize:11,color:textLow,marginBottom:14}}>MP3/WAV-URL pro Event. Leer = Synth-Fallback.</p>
       {SOUND_EVENTS.map(e=><div key={e.key} style={{marginBottom:10}}>
         <label htmlFor={`snd-${e.key}`} style={{fontSize:11,color:textLow,display:"block",marginBottom:3}}>{e.label}</label>
@@ -498,14 +498,43 @@ function SettingsView({sounds,onSave,onBack}){
 }
 
 // ═══════════════════════════════════════════
+// MODAL (shared dialog shell: role=dialog, Escape, Focus-Trap, Focus-Return)
+// ═══════════════════════════════════════════
+function Modal({titleId,onClose,maxWidth=380,accent,children}){
+  const boxRef=useRef(null);
+  useEffect(()=>{
+    const prevFocus=document.activeElement;
+    const focusables=()=>boxRef.current?boxRef.current.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'):[];
+    focusables()[0]?.focus();
+    const onKey=(e)=>{
+      if(e.key==="Escape"){onClose();return;}
+      if(e.key!=="Tab")return;
+      const f=[...focusables()];
+      if(!f.length)return;
+      const first=f[0],last=f[f.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    };
+    document.addEventListener("keydown",onKey);
+    return()=>{document.removeEventListener("keydown",onKey);prevFocus instanceof HTMLElement&&prevFocus.focus();};
+  },[]);
+  return(
+    <div style={{position:"fixed",inset:0,background:"oklch(0% 0 0 / 0.72)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
+      <div ref={boxRef} role="dialog" aria-modal="true" aria-labelledby={titleId} style={{background:card,border:`1px solid ${accent||bdrSoft}`,borderRadius:14,padding:"20px 24px",maxWidth,width:"100%",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
 // HELP MODAL
 // ═══════════════════════════════════════════
 function HelpModal({onClose}){
   return(
-    <div style={{position:"fixed",inset:0,background:"oklch(0% 0 0 / 0.72)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
-      <div style={{background:card,border:`1px solid ${bdrSoft}`,borderRadius:14,padding:"20px 24px",maxWidth:340,width:"100%"}} onClick={e=>e.stopPropagation()}>
+    <Modal titleId="help-title" onClose={onClose} maxWidth={340}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <span style={{fontSize:14,fontWeight:700,color:textHi,fontFamily:F}}>Hilfe</span>
+          <h2 id="help-title" style={{fontSize:14,fontWeight:700,color:textHi,fontFamily:F,margin:0}}>Hilfe</h2>
           <button onClick={onClose} aria-label="Schließen" style={{background:"none",border:"none",color:textLow,fontSize:22,cursor:"pointer",lineHeight:1,padding:"0 0 0 16px"}}>×</button>
         </div>
         <div style={{fontSize:11,color:textLow,lineHeight:1.9,fontFamily:F}}>
@@ -523,8 +552,7 @@ function HelpModal({onClose}){
           <div>↩L — letztes Leg komplett zurücksetzen</div>
           <div style={{marginTop:12,color:textOff}}>Fortschritt wird automatisch gespeichert.</div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -550,10 +578,9 @@ function MatchCard({match,teams,onOpen}){
 function RulesModal({config,onClose}){
   const bo=config.legsToWin*2-1;
   return(
-    <div style={{position:"fixed",inset:0,background:"oklch(0% 0 0 / 0.72)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
-      <div style={{background:card,border:`1px solid ${bdrSoft}`,borderRadius:14,padding:"20px 24px",maxWidth:440,width:"100%",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+    <Modal titleId="rules-title" onClose={onClose} maxWidth={440}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <span style={{fontSize:14,fontWeight:700,color:textHi,fontFamily:F}}>Turnier-Regeln</span>
+          <h2 id="rules-title" style={{fontSize:14,fontWeight:700,color:textHi,fontFamily:F,margin:0}}>Turnier-Regeln</h2>
           <button onClick={onClose} aria-label="Schließen" style={{background:"none",border:"none",color:textLow,fontSize:22,cursor:"pointer",lineHeight:1,padding:"0 0 0 16px"}}>×</button>
         </div>
         <div style={{fontSize:11,color:textLow,lineHeight:1.9,fontFamily:F}}>
@@ -574,8 +601,7 @@ function RulesModal({config,onClose}){
           <div>Freilos (bei ungerader Teamzahl) steigt ohne Spiel automatisch in die nächste Runde auf.</div>
           {config.thirdPlace&&<div>Beide Halbfinal-Verlierer spielen zusätzlich gegeneinander um Platz 3.</div>}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -615,7 +641,7 @@ function TvOverview({bracket}){
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"24px 32px",display:"flex",flexDirection:"column",gap:20,position:"relative"}}>
       <GlobalStyles/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
-        <div style={{fontFamily:FD,fontSize:28,fontWeight:800}}>{bracket.config.name}</div>
+        <h2 style={{fontFamily:FD,fontSize:28,fontWeight:800,margin:0}}>{bracket.config.name}</h2>
         {champion?
           <div style={{fontFamily:FD,fontSize:22,fontWeight:800,color:green}}>🏆 {champion} gewinnt!</div>
           :<div style={{fontSize:13,color:textLow}}>{bracket.config.date}</div>}
@@ -845,7 +871,7 @@ export default function DartTurnier(){
       {/* ── Header (spans both columns on desktop) ── */}
       <div className="bracket-hdr" style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
         <div>
-          <div style={{fontFamily:FD,fontSize:18,fontWeight:800,color:textHi,letterSpacing:"-0.01em"}}>{bracket.config.name}</div>
+          <h2 style={{fontFamily:FD,fontSize:18,fontWeight:800,color:textHi,letterSpacing:"-0.01em",margin:0}}>{bracket.config.name}</h2>
           {bracket.config.date&&<div style={{fontSize:11,color:textLow,marginTop:2}}>{bracket.config.date}</div>}
         </div>
         <div style={{display:"flex",gap:8}}>
@@ -906,16 +932,16 @@ export default function DartTurnier(){
         </div>
       </aside>
       {showHelp&&<HelpModal onClose={()=>setShowHelp(false)}/>}
-      {confirmReset&&<div style={{position:"fixed",inset:0,background:"oklch(0% 0 0 / 0.72)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setConfirmReset(false)}>
-        <div style={{background:card,border:`1px solid ${colRed}`,borderRadius:14,padding:"24px",maxWidth:300,width:"100%",textAlign:"center"}} onClick={e=>e.stopPropagation()}>
-          <div style={{fontSize:13,fontWeight:700,color:textHi,marginBottom:8,fontFamily:F}}>Turnier zurücksetzen?</div>
+      {confirmReset&&<Modal titleId="reset-title" onClose={()=>setConfirmReset(false)} maxWidth={300} accent={colRed}>
+        <div style={{textAlign:"center"}}>
+          <h2 id="reset-title" style={{fontSize:13,fontWeight:700,color:textHi,marginBottom:8,fontFamily:F}}>Turnier zurücksetzen?</h2>
           <div style={{fontSize:11,color:textLow,marginBottom:20,fontFamily:F}}>Alle Ergebnisse und Daten gehen verloren.</div>
           <div style={{display:"flex",gap:8}}>
             <button onClick={()=>setConfirmReset(false)} style={{flex:1,padding:"10px 0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:textMid,fontSize:12,cursor:"pointer",fontFamily:F}}>Abbrechen</button>
             <button onClick={resetTournament} style={{flex:1,padding:"10px 0",background:colRedDk,border:`1px solid ${colRed}`,borderRadius:8,color:colRed,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>Zurücksetzen</button>
           </div>
         </div>
-      </div>}
+      </Modal>}
     </div>
   );
 }
