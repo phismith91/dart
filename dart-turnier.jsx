@@ -38,7 +38,11 @@ const playSound=async(t)=>{try{const u=customSounds[t];if(u&&u.trim())playCustom
 // ═══════════════════════════════════════════
 // STORAGE
 // ═══════════════════════════════════════════
-const SK="dart-turnier-v2";
+// v3: Match-Objekte tragen jetzt ein eingebettetes Engine-Spiel (match.game) statt
+// leg1/leg2/s1/s2/history1/history2 — Key bumpen, damit alte v2-Turnierstände (anderes
+// Schema, kein .game) beim Laden nicht mehr gezogen werden und die App crashen (sonst:
+// "Cannot read properties of undefined (reading 'legs')" bei leerem Bildschirm).
+const SK="dart-turnier-v3";
 const save=async(s)=>{try{await window.storage.set(SK,JSON.stringify(s));}catch(e){}};
 const load=async()=>{try{const r=await window.storage.get(SK);return r?JSON.parse(r.value):null;}catch(e){return null;}};
 const clear=async()=>{try{await window.storage.delete(SK);}catch(e){}};
