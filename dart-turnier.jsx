@@ -256,7 +256,7 @@ const GLOBAL_STYLES_CSS=`
 // ═══════════════════════════════════════════
 // SCORING VIEW
 // ═══════════════════════════════════════════
-function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,legsToWin=2}){
+function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,legsToWin=2,tvControls}){
   const[ap,setAp]=useState(match.legStarter||1);
   const[bustMsg,setBust]=useState(null);
   const[tab,setTab]=useState(0);
@@ -346,8 +346,9 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,leg
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 40px",borderBottom:`1px solid ${bdrSoft}`,flexShrink:0}}>
           <div className="label-upper" style={{fontSize:13,color:textLow,letterSpacing:"0.08em"}}>{roundName}</div>
           <div className="label-upper" style={{fontSize:11,padding:"4px 16px",background:isDoubleOut?orangeDark:greenDark,color:isDoubleOut?orange:green,borderRadius:4}}>{isDoubleOut?"DOUBLE OUT":"SINGLE OUT"}</div>
-          <div style={{display:"flex",alignItems:"center",gap:20}}>
-            <div className="label-upper" style={{fontSize:13,color:textLow}}>LEG {curLeg}</div>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div className="label-upper" style={{fontSize:13,color:textLow,marginRight:8}}>LEG {curLeg}</div>
+            {tvControls}
             <button onClick={()=>window.close()} aria-label="Schließen" style={{background:"none",border:`1px solid ${bdrSoft}`,borderRadius:6,color:textOff,fontSize:16,padding:"2px 10px",cursor:"pointer",fontFamily:F,lineHeight:1}}>✕</button>
           </div>
         </div>
@@ -692,13 +693,16 @@ function TvAuto({bracket,theme,toggleTheme}){
   },[bracket]);
 
   const focus=live||(pinnedId?getMatch(bracket,pinnedId):null);
-  const controls=<div style={{position:"fixed",top:16,right:16,zIndex:150,display:"flex",gap:8}}>
+  // Nur Buttons, ohne eigene Positionierung — Aufrufer entscheidet, ob fixed (Übersicht, hat
+  // keinen eigenen Header) oder eingereiht (Live-Match, hat schon einen Header mit ✕-Button an
+  // derselben Ecke — fixed hätte sich früher damit überlagert).
+  const buttons=<>
     <button onClick={()=>setShowRules(true)} aria-label="Regeln anzeigen" style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>📜 Regeln</button>
     <button onClick={toggleTheme} aria-label={theme==="dark"?"Zu Hellmodus wechseln":"Zu Dunkelmodus wechseln"} style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>{theme==="dark"?"☀️":"🌙"}</button>
-  </div>;
+  </>;
   const rules=showRules&&<RulesModal config={bracket.config} onClose={()=>setShowRules(false)}/>;
-  if(focus)return<><GlobalStyles/>{controls}{rules}<ScoringView match={focus.match} teams={bracket.teams} roundName={focus.round.name} isDoubleOut={focus.round.isDoubleOut} onBack={()=>{}} onUpdate={()=>{}} isTV={true} legsToWin={bracket.config.legsToWin}/></>;
-  return<>{controls}{rules}<TvOverview bracket={bracket}/></>;
+  if(focus)return<><GlobalStyles/>{rules}<ScoringView match={focus.match} teams={bracket.teams} roundName={focus.round.name} isDoubleOut={focus.round.isDoubleOut} onBack={()=>{}} onUpdate={()=>{}} isTV={true} legsToWin={bracket.config.legsToWin} tvControls={buttons}/></>;
+  return<><div style={{position:"fixed",top:16,right:16,zIndex:150,display:"flex",gap:8}}>{buttons}</div>{rules}<TvOverview bracket={bracket}/></>;
 }
 
 // ═══════════════════════════════════════════
