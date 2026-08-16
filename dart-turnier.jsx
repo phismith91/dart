@@ -55,7 +55,7 @@ const getInitialTheme=()=>{try{return localStorage.getItem(THEME_KEY)||"dark";}c
 function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
 function newMatch(id,t1,t2,roundIdx,isThirdPlace=false){
-  return{id,t1,t2,roundIdx,isThirdPlace,legs:[],leg1:501,leg2:501,s1:0,s2:0,winner:null,history1:[],history2:[],starter:1,legStarter:1};
+  return{id,t1,t2,roundIdx,isThirdPlace,legs:[],leg1:501,leg2:501,s1:0,s2:0,winner:null,history1:[],history2:[],starter:1,legStarter:1,started:false};
 }
 
 function buildBracket(teams,config){
@@ -123,7 +123,7 @@ function findLiveMatch(b){
   for(const round of b.rounds){
     for(const m of round.matches){
       const ready=m.t1!==null&&m.t2!==null;
-      const started=ready&&(m.history1.length>0||m.history2.length>0||m.legs.length>0);
+      const started=ready&&(m.started||m.history1.length>0||m.history2.length>0||m.legs.length>0);
       if(started&&m.winner===null)return{match:m,round};
     }
   }
@@ -314,7 +314,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,leg
 
   const undoThrow=()=>{const m=structuredClone(match);const op=ap===1?2:1;const hk=op===1?"history1":"history2",lk=op===1?"leg1":"leg2";if(!m[hk].length)return;m[lk]+=m[hk].pop();setAp(op);onUpdate(m);};
   const undoLeg=()=>{if(!match.legs.length)return;const m=structuredClone(match);const l=m.legs.pop();const sk=l.winner===1?"s1":"s2";m[sk]--;m.history1=l.h1;m.history2=l.h2;m.leg1=501-l.h1.reduce((a,b)=>a+b,0);m.leg2=501-l.h2.reduce((a,b)=>a+b,0);m.winner=null;m.legStarter=m.legStarter===1?2:1;setAp(1);onUpdate(m);};
-  const selectStarter=(p)=>{const m=structuredClone(match);m.starter=p;m.legStarter=p;setAp(p);setShowStarter(false);onUpdate(m);};
+  const selectStarter=(p)=>{const m=structuredClone(match);m.starter=p;m.legStarter=p;m.started=true;setAp(p);setShowStarter(false);onUpdate(m);};
 
   const isReady=match.t1!==null&&match.t2!==null;
 
@@ -620,7 +620,7 @@ function TvMatchCard({match,teams}){
   const t2=match.t2!==null?teams[match.t2]:"—";
   const done=match.winner!==null;
   const ready=match.t1!==null&&match.t2!==null;
-  const started=ready&&(match.history1.length>0||match.history2.length>0||match.legs.length>0);
+  const started=ready&&(match.started||match.history1.length>0||match.history2.length>0||match.legs.length>0);
   const bye=!ready&&done;
   return(
     <div style={{background:done?greenDark:started?surf2:card,border:`1px solid ${done?greenBdr:started?green:bdr}`,borderRadius:10,padding:"10px 14px",position:"relative"}}>
