@@ -1,13 +1,14 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as Tone from "tone";
+import { createGame, throwTotal, throwDarts, undoTurn, undoLeg as engineUndoLeg, setStarter, getStats } from "./src/engine.js";
+import { getCheckout as engineGetCheckout } from "./src/checkouts.js";
+import { IMPOSSIBLE_TOTALS, dartValue, dartLabel } from "./src/types.js";
 
 // ═══════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════
-const IMPOSSIBLE = new Set([163,166,169,172,173,175,176,178,179]);
 const COMMON = new Set([0,20,26,30,40,41,45,50,54,55,57,60,80,81,85,95,100,105,120,121,125,133,137,140,160,170,174,177,180]);
 const FAVORITES = [0,26,41,45,60,80,85,100,121,140,180];
-const CHECKOUTS_DO={170:"T20 T20 Bull",167:"T20 T19 Bull",164:"T20 T18 Bull",161:"T20 T17 Bull",160:"T20 T20 D20",158:"T20 T20 D19",157:"T20 T19 D20",156:"T20 T20 D18",155:"T20 T19 D19",154:"T20 T18 D20",153:"T20 T19 D18",152:"T20 T20 D16",151:"T20 T17 D20",150:"T20 T18 D18",149:"T20 T19 D16",148:"T20 T16 D20",147:"T20 T17 D18",146:"T20 T18 D16",145:"T20 T19 D14",144:"T20 T20 D12",143:"T20 T17 D16",142:"T20 T14 D20",141:"T20 T19 D12",140:"T20 T16 D16",139:"T20 T13 D20",138:"T20 T18 D12",137:"T20 T19 D10",136:"T20 T20 D8",135:"T20 T17 D12",134:"T20 T14 D16",133:"T20 T19 D8",132:"T20 T16 D12",131:"T20 T13 D16",130:"T20 T18 D8",129:"T19 T16 D12",128:"T18 T14 D16",127:"T20 T17 D8",126:"T19 T19 D6",125:"T20 T19 Bull",124:"T20 T16 D8",123:"T19 T16 D9",122:"T18 T20 D4",121:"T20 T11 D14",120:"T20 S20 D20",119:"T19 T12 D8",118:"T20 S18 D20",117:"T20 S17 D20",116:"T20 S16 D20",115:"T20 S15 D20",114:"T20 S14 D20",113:"T20 S13 D20",112:"T20 T12 D8",111:"T20 S11 D20",110:"T20 S10 D20",109:"T20 S9 D20",108:"T20 S8 D20",107:"T20 S7 D20",106:"T20 S6 D20",105:"T20 S5 D20",104:"T20 S4 D20",103:"T20 S3 D20",102:"T20 S2 D20",101:"T20 S1 D20",100:"T20 D20",99:"T19 S10 D16",98:"T20 D19",97:"T19 D20",96:"T20 D18",95:"T19 D19",94:"T18 D20",93:"T19 D18",92:"T20 D16",91:"T17 D20",90:"T18 D18",89:"T19 D16",88:"T16 D20",87:"T17 D18",86:"T18 D16",85:"T19 D14",84:"T20 D12",83:"T17 D16",82:"T14 D20",81:"T19 D12",80:"T20 D10",79:"T13 D20",78:"T18 D12",77:"T19 D10",76:"T20 D8",75:"T17 D12",74:"T14 D16",73:"T19 D8",72:"T16 D12",71:"T13 D16",70:"T18 D8",69:"T19 D6",68:"T20 D4",67:"T17 D8",66:"T10 D18",65:"T19 D4",64:"T16 D8",63:"T13 D12",62:"T10 D16",61:"T15 D8",60:"S20 D20",59:"S19 D20",58:"S18 D20",57:"S17 D20",56:"S16 D20",55:"S15 D20",54:"S14 D20",53:"S13 D20",52:"S12 D20",51:"S11 D20",50:"S10 D20",49:"S9 D20",48:"S8 D20",47:"S7 D20",46:"S6 D20",45:"S5 D20",44:"S4 D20",43:"S3 D20",42:"S2 D20",41:"S1 D20",40:"D20",38:"D19",36:"D18",34:"D17",32:"D16",30:"D15",28:"D14",26:"D13",24:"D12",22:"D11",20:"D10",18:"D9",16:"D8",14:"D7",12:"D6",10:"D5",8:"D4",6:"D3",4:"D2",2:"D1",39:"S7 D16",37:"S5 D16",35:"S3 D16",33:"S1 D16",31:"S15 D8",29:"S13 D8",27:"S11 D8",25:"S9 D8",23:"S7 D8",21:"S5 D8",19:"S3 D8",17:"S1 D8",15:"S7 D4",13:"S5 D4",11:"S3 D4",9:"S1 D4",7:"S3 D2",5:"S1 D2",3:"S1 D1"};
 
 const SOUND_EVENTS=[{key:"180",label:"180!"},{key:"140",label:"140+"},{key:"100",label:"100+"},{key:"checkout",label:"Checkout"},{key:"bust",label:"Bust"},{key:"winner",label:"Sieger"}];
 
@@ -54,8 +55,24 @@ const getInitialTheme=()=>{try{return localStorage.getItem(THEME_KEY)||"dark";}c
 // ═══════════════════════════════════════════
 function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
-function newMatch(id,t1,t2,roundIdx,isThirdPlace=false){
-  return{id,t1,t2,roundIdx,isThirdPlace,legs:[],leg1:501,leg2:501,s1:0,s2:0,winner:null,history1:[],history2:[],starter:1,legStarter:1,started:false};
+// Scoring läuft über die getestete Engine (src/engine.js) statt über von Hand nachgebaute
+// Bust-/Leg-/Match-Logik — jedes Match trägt sein eigenes, unabhängiges Engine-Spiel in .game.
+// Bracket-Struktur (t1/t2/winner/Freilose/Auslosung) bleibt unverändert eigenständig (Layer B).
+function newMatch(id,t1,t2,roundIdx,isThirdPlace=false,isDoubleOut=false,legsToWin=2){
+  return{id,t1,t2,roundIdx,isThirdPlace,winner:null,started:false,
+    game:createGame({startScore:501,checkoutMode:isDoubleOut?"double":"single",legsToWin,dartsPerTurn:3})};
+}
+
+// Aus dem Engine-Turn-Log (interleaved, beide Spieler) die Pro-Spieler-Wurf-Historie des
+// aktuellen Legs ableiten — für die Verlaufs-Anzeige, die Engine trackt nur turns[] gesamt.
+function legHistory(game,player){return game.turns.filter(t=>t.player===player).map(t=>t.score);}
+
+// Checkout-Vorschlag fürs TV/Scoring — nutzt die echte Checkout-Tabelle aus src/checkouts.js,
+// blendet aber den generischen "setup + finish"-Platzhalter (>60 bei Single Out) aus: eine
+// konkrete Zahl oder nichts, kein vages "irgendwie hinfinden" auf dem Zuschauer-Screen.
+function checkoutSuggestion(rem,isDoubleOut){
+  const co=engineGetCheckout(rem,isDoubleOut?"double":"single");
+  return co&&co.path!=="setup + finish"?co.path:null;
 }
 
 function buildBracket(teams,config){
@@ -65,6 +82,7 @@ function buildBracket(teams,config){
   const rounds=[];
   for(let r=0;r<numRounds;r++){
     const matchCount=bracketSize/Math.pow(2,r+1);
+    const isDoubleOut=r===numRounds-1&&config.finalDoubleOut;
     const matches=[];
     for(let m=0;m<matchCount;m++){
       let t1=null,t2=null;
@@ -79,18 +97,18 @@ function buildBracket(teams,config){
           t2=i2<n?i2:null;
         }
       }
-      const match=newMatch(`r${r}m${m}`,t1,t2,r);
+      const match=newMatch(`r${r}m${m}`,t1,t2,r,false,isDoubleOut,config.legsToWin);
       if(r===0&&(t1===null)!==(t2===null))match.winner=t1!==null?t1:t2; // Freilos: kampflos weiter
       matches.push(match);
     }
-    rounds.push({matches,name:ROUND_NAMES[numRounds]?.[r]||`Runde ${r+1}`,isDoubleOut:r===numRounds-1&&config.finalDoubleOut});
+    rounds.push({matches,name:ROUND_NAMES[numRounds]?.[r]||`Runde ${r+1}`,isDoubleOut});
   }
   // Third-place match — nur sinnvoll, wenn beide Halbfinal-Slots durch ein echtes Spiel entschieden werden;
   // war eines davon selbst ein Freilos (möglich bei numRounds===2, z.B. 3 Teams), gibt es keinen Verlierer dafür
   const semifinalRound=rounds[numRounds-2];
   const semifinalHasFreilos=semifinalRound?.matches.some(m=>m.winner!==null);
   if(config.thirdPlace&&numRounds>=2&&!semifinalHasFreilos){
-    rounds.push({matches:[newMatch("3rd",null,null,numRounds,true)],name:"Platz 3",isDoubleOut:config.finalDoubleOut});
+    rounds.push({matches:[newMatch("3rd",null,null,numRounds,true,config.finalDoubleOut,config.legsToWin)],name:"Platz 3",isDoubleOut:config.finalDoubleOut});
   }
   return{teams:[...teams],rounds,config};
 }
@@ -123,7 +141,7 @@ function findLiveMatch(b){
   for(const round of b.rounds){
     for(const m of round.matches){
       const ready=m.t1!==null&&m.t2!==null;
-      const started=ready&&(m.started||m.history1.length>0||m.history2.length>0||m.legs.length>0);
+      const started=ready&&(m.started||m.game.turns.length>0||m.game.legResults.length>0);
       if(started&&m.winner===null)return{match:m,round};
     }
   }
@@ -135,38 +153,25 @@ function findLiveMatch(b){
 // ═══════════════════════════════════════════
 function computeStats(bracket){
   if(!bracket)return[];
-  const s=bracket.teams.map((name,i)=>({name,i,throws:[],legs:0,matchesWon:0}));
+  const agg=bracket.teams.map((name,i)=>({name,i,scoreSum:0,totalThrows:0,legs:0,matchesWon:0,ton80:0,ton40:0,ton:0,highest:0}));
   for(const round of bracket.rounds){
     for(const m of round.matches){
       if(m.t1===null||m.t2===null)continue;
-      // Finished legs
-      for(const leg of m.legs){
-        (leg.h1||[]).forEach(t=>s[m.t1].throws.push(t));
-        (leg.h2||[]).forEach(t=>s[m.t2].throws.push(t));
-        const w=leg.winner===1?m.t1:m.t2;
-        s[w].legs++;
+      // Pro-Match-Stats kommen direkt aus der Engine (getStats) statt Rohdaten von Hand zu summieren —
+      // bust-inklusive, da die Engine gebustete Aufnahmen (score:0) im Turn-Log führt.
+      const[st1,st2]=getStats(m.game);
+      for(const[teamIdx,st] of[[m.t1,st1],[m.t2,st2]]){
+        const a=agg[teamIdx];
+        a.scoreSum+=st.average*st.totalThrows;
+        a.totalThrows+=st.totalThrows;
+        a.legs+=st.legs;
+        a.ton80+=st.ton80;a.ton40+=st.ton40;a.ton+=st.ton;
+        if(st.highest>a.highest)a.highest=st.highest;
       }
-      // Current leg in progress
-      m.history1.forEach(t=>s[m.t1].throws.push(t));
-      m.history2.forEach(t=>s[m.t2].throws.push(t));
-      // Match winner
-      if(m.winner!==null)s[m.winner].matchesWon++;
+      if(m.winner!==null)agg[m.winner].matchesWon++;
     }
   }
-  return s.map(x=>{
-    const t=x.throws;
-    const avg=t.length?t.reduce((a,b)=>a+b,0)/t.length:0;
-    return{...x,avg:avg.toFixed(1),ton80:t.filter(v=>v===180).length,ton40:t.filter(v=>v>=140).length,ton:t.filter(v=>v>=100).length,highest:t.length?Math.max(...t):0,totalThrows:t.length};
-  }).sort((a,b)=>b.avg-a.avg);
-}
-
-// ═══════════════════════════════════════════
-// CHECKOUT HELPER
-// ═══════════════════════════════════════════
-function getCheckout(rem,isDO){
-  if(isDO)return CHECKOUTS_DO[rem]||null;
-  if(rem<=60)return`S${rem}`;
-  if(rem<=180)return null;
+  return agg.map(a=>({...a,avg:(a.totalThrows?a.scoreSum/a.totalThrows:0).toFixed(1)})).sort((a,b)=>b.avg-a.avg);
 }
 
 // ═══════════════════════════════════════════
@@ -257,41 +262,38 @@ const GLOBAL_STYLES_CSS=`
 // SCORING VIEW
 // ═══════════════════════════════════════════
 function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,legsToWin=2,tvControls}){
-  const[ap,setAp]=useState(match.legStarter||1);
+  const[ap,setAp]=useState(match.game.legStarter+1);
   const[bustMsg,setBust]=useState(null);
   const[tab,setTab]=useState(0);
   const[showGrid,setShowGrid]=useState(false);
   const[npad,setNpad]=useState("");
-  const[showStarter,setShowStarter]=useState(!match.history1.length&&!match.history2.length&&!match.legs.length);
+  const[showStarter,setShowStarter]=useState(!match.started);
   const[darts,setDarts]=useState([]);
   const[mm,setMm]=useState("S");
 
   const t1=match.t1!==null?teams[match.t1]:"—";
   const t2=match.t2!==null?teams[match.t2]:"—";
-  const curLeg=match.legs.length+1;
-  const rem=ap===1?match.leg1:match.leg2;
-  const co1=getCheckout(match.leg1,isDoubleOut);
-  const co2=getCheckout(match.leg2,isDoubleOut);
+  const curLeg=match.game.legResults.length+1;
+  const rem=ap===1?match.game.scores[0]:match.game.scores[1];
+  const co1=checkoutSuggestion(match.game.scores[0],isDoubleOut);
+  const co2=checkoutSuggestion(match.game.scores[1],isDoubleOut);
 
-  const addScore=(score)=>{
-    if(score<0||score>180)return;
-    if(IMPOSSIBLE.has(score)){setBust("Unmöglich!");setTimeout(()=>setBust(null),1200);return;}
-    const m=structuredClone(match);
-    const k=ap===1?"leg1":"leg2",hk=ap===1?"history1":"history2";
-    const rest=m[k]-score;
-    if(rest<0||(isDoubleOut&&rest===1)){setBust("BUST!");playSound("bust");setTimeout(()=>setBust(null),1200);setAp(ap===1?2:1);return;}
-    m[k]=rest;m[hk]=[...m[hk],score];
+  // Gemeinsame Auswertung für throwTotal/throwDarts-Ergebnisse — Bust-/Sound-/Leg-/Match-Ende
+  // kommt fertig aus der Engine, hier nur noch UI-Reaktion (Toast, Sound, wessen Zug/Sieger).
+  const applyThrowResult=(res)=>{
+    if(res.result.error){setBust("Unmöglich!");setTimeout(()=>setBust(null),1200);return;}
+    const m=structuredClone(match);m.game=res.state;
+    if(res.result.type==="BUST"){setBust("BUST!");playSound("bust");setTimeout(()=>setBust(null),1200);setAp(m.game.currentPlayer+1);onUpdate(m);return;}
+    const score=res.result.turn.score;
     if(score===180)playSound("180");else if(score>=140)playSound("140");else if(score>=100)playSound("100");
-    if(rest===0){
+    if(res.result.type==="LEG_WON"||res.result.type==="MATCH_WON"){
       playSound("checkout");
-      const sk=ap===1?"s1":"s2";m[sk]++;
-      m.legs.push({winner:ap,h1:[...m.history1],h2:[...m.history2]});
-      if(m[sk]>=legsToWin){m.winner=ap===1?m.t1:m.t2;setTimeout(()=>playSound("winner"),600);onUpdate(m);return;}
-      m.legStarter=m.legStarter===1?2:1;m.leg1=501;m.leg2=501;m.history1=[];m.history2=[];
-      setAp(m.legStarter);onUpdate(m);return;
+      if(res.result.type==="MATCH_WON"){m.winner=m.game.winner===0?m.t1:m.t2;setTimeout(()=>playSound("winner"),600);onUpdate(m);return;}
     }
-    setAp(ap===1?2:1);onUpdate(m);
+    setAp(m.game.currentPlayer+1);onUpdate(m);
   };
+  const addScore=(score)=>applyThrowResult(throwTotal(match.game,score));
+  const addDarts=(dartsArr)=>applyThrowResult(throwDarts(match.game,dartsArr.map(d=>({field:d.field,multiplier:d.multi}))));
 
   // Enter trägt die aktuell eingegebene Aufnahme ein (Numpad-Rest oder Darts-Summe) statt Button-Klick.
   // Listener wird nur einmal gebunden (nicht bei jedem Tastendruck/Render neu) — liest den aktuellen
@@ -300,7 +302,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,leg
   onEnterRef.current=()=>{
     if(isTV||showStarter||match.winner!==null)return;
     if(tab===4&&npad){addScore(Number(npad));setNpad("");}
-    else if(tab===5&&darts.length){addScore(dTotal);setDarts([]);}
+    else if(tab===5&&darts.length){addDarts(darts);setDarts([]);}
   };
   useEffect(()=>{
     const onKey=(e)=>{
@@ -312,25 +314,23 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,leg
     return()=>window.removeEventListener("keydown",onKey);
   },[]);
 
-  const undoThrow=()=>{const m=structuredClone(match);const op=ap===1?2:1;const hk=op===1?"history1":"history2",lk=op===1?"leg1":"leg2";if(!m[hk].length)return;m[lk]+=m[hk].pop();setAp(op);onUpdate(m);};
-  const undoLeg=()=>{if(!match.legs.length)return;const m=structuredClone(match);const l=m.legs.pop();const sk=l.winner===1?"s1":"s2";m[sk]--;m.history1=l.h1;m.history2=l.h2;m.leg1=501-l.h1.reduce((a,b)=>a+b,0);m.leg2=501-l.h2.reduce((a,b)=>a+b,0);m.winner=null;m.legStarter=m.legStarter===1?2:1;setAp(1);onUpdate(m);};
-  const selectStarter=(p)=>{const m=structuredClone(match);m.starter=p;m.legStarter=p;m.started=true;setAp(p);setShowStarter(false);onUpdate(m);};
+  const undoThrow=()=>{const res=undoTurn(match.game);if(res.result.error)return;const m=structuredClone(match);m.game=res.state;setAp(m.game.currentPlayer+1);onUpdate(m);};
+  const undoLeg=()=>{const res=engineUndoLeg(match.game);if(res.result.error)return;const m=structuredClone(match);m.game=res.state;m.winner=null;setAp(m.game.currentPlayer+1);onUpdate(m);};
+  const selectStarter=(p)=>{const res=setStarter(match.game,p-1);const m=structuredClone(match);m.game=res.state;m.started=true;setAp(p);setShowStarter(false);onUpdate(m);};
 
   const isReady=match.t1!==null&&match.t2!==null;
 
-  // Dart-by-dart helpers
-  const dv=(d)=>d.field===25?(d.multi==="D"?50:25):d.field===0?0:d.field*(d.multi==="T"?3:d.multi==="D"?2:1);
-  const dl=(d)=>d.field===25?(d.multi==="D"?"Bull":"S-Bull"):d.field===0?"Miss":`${d.multi}${d.field}`;
+  // Dart-by-dart helpers — dartValue/dartLabel aus der Engine (src/types.js), nur die lokale
+  // Feldbenennung ({field,multi}) statt {field,multiplier} bleibt UI-eigen.
+  const dv=(d)=>dartValue(d.field,d.multi);
+  const dl=(d)=>dartLabel(d.field,d.multi);
   const dTotal=darts.reduce((s,d)=>s+dv(d),0);
   const addDart=(f)=>{if(darts.length>=3)return;if(f===25&&mm==="T")return;setDarts([...darts,{field:f,multi:f===0?"S":mm}]);};
 
   // ── TV VIEW ──
   if(isTV){
-    // Wer dran ist rein aus den Match-Daten ableiten statt aus lokalem ap-State: die TV-Ansicht
-    // mountet oft erst mitten im Leg (Match ist schon "live"), da wäre der bei match.legStarter
-    // eingefrorene ap-Startwert sonst dauerhaft falsch.
-    const turnPlayer=match.history1.length===match.history2.length?match.legStarter:(match.legStarter===1?2:1);
-    const sides=[{p:1,name:t1,rem:match.leg1,s:match.s1,co:co1},{p:2,name:t2,rem:match.leg2,s:match.s2,co:co2}];
+    const turnPlayer=match.game.currentPlayer+1;
+    const sides=[{p:1,name:t1,rem:match.game.scores[0],s:match.game.legs[0],co:co1},{p:2,name:t2,rem:match.game.scores[1],s:match.game.legs[1],co:co2}];
     return(
       <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
         {bustMsg&&<div style={{position:"fixed",inset:0,background:`oklch(14% 0.05 20)`,zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",animation:"tv-bust 1.2s ease-out forwards",pointerEvents:"none"}}>
@@ -392,7 +392,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,leg
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10,padding:20}}>
       <div style={{fontSize:48}}>🏆</div>
       <div style={{fontFamily:FD,fontSize:22,fontWeight:800,color:green,letterSpacing:"-0.01em"}}>{teams[match.winner]} gewinnt!</div>
-      <div className="score-num" style={{fontSize:14,color:textLow,marginTop:2}}>{match.s1} : {match.s2}</div>
+      <div className="score-num" style={{fontSize:14,color:textLow,marginTop:2}}>{match.game.legs[0]} : {match.game.legs[1]}</div>
       <div style={{display:"flex",gap:10,marginTop:16}}>
         <button onClick={onBack} style={{padding:"10px 20px",background:greenDark,border:`1px solid ${greenBdr}`,borderRadius:8,color:greenText,fontSize:13,cursor:"pointer",fontFamily:F}}>Zurück</button>
         <button onClick={undoLeg} style={{padding:"10px 20px",background:colRedDk,border:`1px solid ${colRed}`,borderRadius:8,color:colRed,fontSize:12,cursor:"pointer",fontFamily:F}}>↩ Leg zurück</button>
@@ -401,7 +401,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,leg
   );
 
   // ── GRIDS ──
-  const renderGrid=(from,to)=>{const nums=[];for(let i=from;i<=to;i++)if(!IMPOSSIBLE.has(i))nums.push(i);
+  const renderGrid=(from,to)=>{const nums=[];for(let i=from;i<=to;i++)if(!IMPOSSIBLE_TOTALS.has(i))nums.push(i);
     return<div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:5,padding:"6px 8px",overflowY:"auto",flex:1}}>{nums.map(n=>{const dis=n>rem||(isDoubleOut&&(rem-n)===1);const c=COMMON.has(n);return<button key={n} onClick={()=>!dis&&addScore(n)} aria-disabled={dis?"true":undefined} style={{background:dis?bg:c?greenDark:surf2,border:`1px solid ${dis?bdrSoft:c?greenBdr:bdr}`,color:dis?textOff:c?green:textMid,borderRadius:6,padding:"10px 0",fontSize:14,fontWeight:c?700:400,cursor:dis?"default":"pointer",fontFamily:F}}>{n}</button>})}</div>;};
 
   const renderFavs=()=><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,padding:"10px",flex:1,alignContent:"start"}}>{FAVORITES.map(n=>{const dis=n>rem||(isDoubleOut&&(rem-n)===1);return<button key={n} onClick={()=>!dis&&addScore(n)} aria-disabled={dis?"true":undefined} style={{background:dis?bg:n===180?colRedDk:n===0?colBlueDk:greenDark,border:`1px solid ${dis?bdrSoft:n===180?colRed:n===0?colBlue:greenBdr}`,color:dis?textOff:n===180?colRed:n===0?colBlue:green,borderRadius:10,padding:"18px 0",fontSize:22,fontWeight:800,cursor:dis?"default":"pointer",fontFamily:F}}>{n}</button>})}</div>;
@@ -425,11 +425,11 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,leg
       </div>
       <div style={{display:"flex",gap:6,padding:"8px 0"}}>
         <button onClick={()=>darts.length&&setDarts(darts.slice(0,-1))} disabled={!darts.length} aria-label="Letzten Dart entfernen" style={{flex:1,padding:"0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:darts.length?orange:textOff,fontSize:14,fontFamily:F}}>↩</button>
-        <button onClick={()=>{if(darts.length){addScore(dTotal);setDarts([]);}}} style={{flex:2,padding:"10px 0",background:darts.length?green:surf2,border:`1px solid ${darts.length?green:bdr}`,borderRadius:8,color:darts.length?bg:textOff,fontSize:14,fontWeight:700,cursor:darts.length?"pointer":"default",fontFamily:F}}>{darts.length?`${dTotal} eintragen`:"Darts eingeben"}</button>
+        <button onClick={()=>{if(darts.length){addDarts(darts);setDarts([]);}}} style={{flex:2,padding:"10px 0",background:darts.length?green:surf2,border:`1px solid ${darts.length?green:bdr}`,borderRadius:8,color:darts.length?bg:textOff,fontSize:14,fontWeight:700,cursor:darts.length?"pointer":"default",fontFamily:F}}>{darts.length?`${dTotal} eintragen`:"Darts eingeben"}</button>
       </div>
     </div>;};
 
-  const sides=[{p:1,name:t1,r:match.leg1,h:match.history1,s:match.s1,co:co1},{p:2,name:t2,r:match.leg2,h:match.history2,s:match.s2,co:co2}];
+  const sides=[{p:1,name:t1,r:match.game.scores[0],h:legHistory(match.game,0),s:match.game.legs[0],co:co1},{p:2,name:t2,r:match.game.scores[1],h:legHistory(match.game,1),s:match.game.legs[1],co:co2}];
 
   return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,display:"flex",flexDirection:"column",maxWidth:420,margin:"0 auto"}}>
@@ -438,7 +438,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,leg
         <div style={{flex:1}}><span style={{fontSize:12,color:textMid}}>{roundName}</span><span style={{marginLeft:6,fontSize:9,padding:"2px 5px",background:isDoubleOut?orangeDark:greenDark,color:isDoubleOut?orange:green,borderRadius:4}}>{isDoubleOut?"DO":"SO"}</span></div>
         <span style={{fontSize:11,color:textLow,marginRight:6}}>Leg {curLeg}</span>
         <button onClick={undoThrow} aria-label="Letzten Wurf zurücknehmen" style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:orange,fontSize:13,padding:"0 14px",cursor:"pointer",fontFamily:F,marginRight:4}}>↩</button>
-        {match.legs.length>0&&<button onClick={undoLeg} aria-label="Letztes Leg zurücknehmen" style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:colRed,fontSize:11,padding:"0 10px",cursor:"pointer",fontFamily:F}}>↩L</button>}
+        {match.game.legResults.length>0&&<button onClick={undoLeg} aria-label="Letztes Leg zurücknehmen" style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:colRed,fontSize:11,padding:"0 10px",cursor:"pointer",fontFamily:F}}>↩L</button>}
       </div>
       <div style={{display:"flex",gap:8,padding:"8px 10px"}}>
         {sides.map(({p,name,r,h,s,co})=><button key={p} onClick={()=>setAp(p)} aria-label={`${name}, Rest: ${r}`} aria-pressed={ap===p} style={{flex:1,padding:"8px 6px",borderRadius:10,background:ap===p?greenDark:card,border:`2px solid ${ap===p?green:bdr}`,display:"flex",flexDirection:"column",width:"100%"}}>
@@ -573,9 +573,9 @@ function MatchCard({match,teams,onOpen}){
   const freilos=done&&!ready;
   return<div>
     <button onClick={()=>onOpen(match.id)} disabled={!ready} style={{width:"100%",display:"block",textAlign:"left",background:done?greenDark:card,border:`1px solid ${done?greenBdr:bdr}`,borderRadius:10,padding:"10px 14px",minWidth:170,color:"inherit"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}><span style={{color:match.winner===match.t1?green:textMid,fontSize:13,fontWeight:match.winner===match.t1?700:400,fontFamily:F,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t1}</span><span style={{color:textLow,fontSize:14,fontFamily:F,fontWeight:700}}>{match.s1}</span></div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}><span style={{color:match.winner===match.t1?green:textMid,fontSize:13,fontWeight:match.winner===match.t1?700:400,fontFamily:F,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t1}</span><span style={{color:textLow,fontSize:14,fontFamily:F,fontWeight:700}}>{match.game.legs[0]}</span></div>
       <div style={{height:1,background:bdr}}/>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:5}}><span style={{color:match.winner===match.t2?green:textMid,fontSize:13,fontWeight:match.winner===match.t2?700:400,fontFamily:F,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t2}</span><span style={{color:textLow,fontSize:14,fontFamily:F,fontWeight:700}}>{match.s2}</span></div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:5}}><span style={{color:match.winner===match.t2?green:textMid,fontSize:13,fontWeight:match.winner===match.t2?700:400,fontFamily:F,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t2}</span><span style={{color:textLow,fontSize:14,fontFamily:F,fontWeight:700}}>{match.game.legs[1]}</span></div>
       {ready&&!done&&<div style={{textAlign:"center",marginTop:6,fontSize:10,color:green}}>▶ Spielen</div>}
       {freilos&&<div style={{textAlign:"center",marginTop:6,fontSize:10,color:textOff}}>Freilos — steigt kampflos auf</div>}
       {match.isThirdPlace&&<div style={{textAlign:"center",marginTop:4,fontSize:9,color:orange}}>🥉 Platz 3</div>}
@@ -621,21 +621,21 @@ function TvMatchCard({match,teams}){
   const t2=match.t2!==null?teams[match.t2]:"—";
   const done=match.winner!==null;
   const ready=match.t1!==null&&match.t2!==null;
-  const started=ready&&(match.started||match.history1.length>0||match.history2.length>0||match.legs.length>0);
+  const started=ready&&(match.started||match.game.turns.length>0||match.game.legResults.length>0);
   const bye=!ready&&done;
   return(
     <div style={{background:done?greenDark:started?surf2:card,border:`1px solid ${done?greenBdr:started?green:bdr}`,borderRadius:10,padding:"10px 14px",position:"relative"}}>
       {started&&!done&&<div style={{position:"absolute",top:8,right:10,fontSize:9,color:green,display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:"50%",background:green,display:"inline-block"}}/>LIVE</div>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
         <span style={{color:match.winner===match.t1?green:textHi,fontSize:16,fontWeight:match.winner===match.t1?800:600,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t1}</span>
-        <span className="score-num" style={{color:textHi,fontSize:started?22:16,fontWeight:800}}>{started&&!done?match.leg1:match.s1}</span>
+        <span className="score-num" style={{color:textHi,fontSize:started?22:16,fontWeight:800}}>{started&&!done?match.game.scores[0]:match.game.legs[0]}</span>
       </div>
       <div style={{height:1,background:bdr}}/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
         <span style={{color:match.winner===match.t2?green:textHi,fontSize:16,fontWeight:match.winner===match.t2?800:600,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t2}</span>
-        <span className="score-num" style={{color:textHi,fontSize:started?22:16,fontWeight:800}}>{started&&!done?match.leg2:match.s2}</span>
+        <span className="score-num" style={{color:textHi,fontSize:started?22:16,fontWeight:800}}>{started&&!done?match.game.scores[1]:match.game.legs[1]}</span>
       </div>
-      {started&&!done&&<div style={{textAlign:"center",marginTop:6,fontSize:10,color:textLow}}>Sätze {match.s1}:{match.s2}</div>}
+      {started&&!done&&<div style={{textAlign:"center",marginTop:6,fontSize:10,color:textLow}}>Sätze {match.game.legs[0]}:{match.game.legs[1]}</div>}
       {bye&&<div style={{textAlign:"center",marginTop:4,fontSize:9,color:textOff}}>Freilos</div>}
     </div>
   );
