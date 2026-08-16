@@ -202,17 +202,20 @@ wrappen (Inhalt unverändert). Direkt danach neuer Block:
   <Stepper label="Gruppen" value={config.numGroups} onChange={v=>setConfig(c=>({...c,numGroups:v}))} min={1} max={4}/>
   <Stepper label="Kommt weiter (pro Gruppe)" value={config.advanceCount} onChange={v=>setConfig(c=>({...c,advanceCount:v}))} min={1} max={4}/>
   <div style={{fontSize:10,color:textLow,fontWeight:600,margin:"12px 0 6px",letterSpacing:"0.06em"}}>GRUPPENPHASE</div>
-  <Stepper label="Best of (Legs)" value={config.groupLegsToWin*2-1} onChange={v=>setConfig(c=>({...c,groupLegsToWin:Math.ceil((v+1)/2)}))} min={1} max={9}/>
+  <Stepper label={`Best of ${config.groupLegsToWin*2-1} (Legs)`} value={config.groupLegsToWin} onChange={v=>setConfig(c=>({...c,groupLegsToWin:v}))} min={1} max={5}/>
   <DoubleOutToggle checked={config.groupDoubleOut} onChange={()=>setConfig(c=>({...c,groupDoubleOut:!c.groupDoubleOut}))} label="Double Out"/>
   <div style={{fontSize:10,color:textLow,fontWeight:600,margin:"12px 0 6px",letterSpacing:"0.06em"}}>KO-PLAYOFF</div>
-  <Stepper label="Best of (Legs)" value={config.koLegsToWin*2-1} onChange={v=>setConfig(c=>({...c,koLegsToWin:Math.ceil((v+1)/2)}))} min={1} max={9}/>
+  <Stepper label={`Best of ${config.koLegsToWin*2-1} (Legs)`} value={config.koLegsToWin} onChange={v=>setConfig(c=>({...c,koLegsToWin:v}))} min={1} max={5}/>
   <DoubleOutToggle checked={config.koDoubleOut} onChange={()=>setConfig(c=>({...c,koDoubleOut:!c.koDoubleOut}))} label="Double Out"/>
   <DoubleOutToggle checked={config.koThirdPlace} onChange={()=>setConfig(c=>({...c,koThirdPlace:!c.koThirdPlace}))} label="Spiel um Platz 3"/>
 </>}
 ```
-(Stepper zeigt/setzt Best-of-N direkt statt der internen `legsToWin`,
-damit die Anzeige mit dem heutigen „Bo{legsToWin*2-1}"-Text konsistent
-bleibt — `Math.ceil((v+1)/2)` rechnet von Bo-N zurück auf `legsToWin`.)
+(Stepper operiert direkt auf `legsToWin`, min=1/max=5 — Bo9 als Maximalanzeige
+entspricht `5*2-1=9`. Die Bo-N-Framing wandert in den Label-Text via Template-
+String, damit jeder ±1-Schritt tatsächlich `legsToWin` verändert statt — wie in
+einer früheren Fassung dieses Plans — über eine verlustbehaftete Rundung
+`Math.ceil((v+1)/2)` zu laufen, die „-" zum No-op machte und „+" jede zweite
+Bo-Zahl überspringen ließ.)
 
 - [ ] **Schritt 4: Build + Sichtcheck**
 
