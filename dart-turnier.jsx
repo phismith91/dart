@@ -150,6 +150,16 @@ function findLiveMatch(b){
   }
   return null;
 }
+// Sucht ein Match sowohl im Bracket (K.o.) als auch in der Gruppenphase — ScoringView
+// braucht dieselbe {match,round}-Form unabhängig davon, woher das Match kommt.
+function findMatchAnywhere(bracket,groupPhase,id){
+  if(bracket){const r=getMatch(bracket,id);if(r)return{...r,teams:bracket.teams};}
+  if(groupPhase){
+    const m=groupPhase.order.find(x=>x.id===id);
+    if(m)return{match:m,round:{name:groupPhase.group1.includes(m)?"Gruppe 1":"Gruppe 2",isDoubleOut:false},teams:groupPhase.teams};
+  }
+  return null;
+}
 
 // ═══════════════════════════════════════════
 // STATS (computed from match data — undo-safe)
@@ -538,6 +548,21 @@ function Modal({titleId,onClose,maxWidth=380,accent,children}){
   );
 }
 
+function ResetConfirmModal({onCancel,onConfirm}){
+  return(
+    <Modal titleId="reset-title" onClose={onCancel} maxWidth={300} accent={colRed}>
+      <div style={{textAlign:"center"}}>
+        <h2 id="reset-title" style={{fontSize:13,fontWeight:700,color:textHi,marginBottom:8,fontFamily:F}}>Turnier zurücksetzen?</h2>
+        <div style={{fontSize:11,color:textLow,marginBottom:20,fontFamily:F}}>Alle Ergebnisse und Daten gehen verloren.</div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={onCancel} style={{flex:1,padding:"10px 0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:textMid,fontSize:12,cursor:"pointer",fontFamily:F}}>Abbrechen</button>
+          <button onClick={onConfirm} style={{flex:1,padding:"10px 0",background:colRedDk,border:`1px solid ${colRed}`,borderRadius:8,color:colRed,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>Zurücksetzen</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ═══════════════════════════════════════════
 // HELP MODAL
 // ═══════════════════════════════════════════
@@ -584,6 +609,57 @@ function MatchCard({match,teams,onOpen}){
       {match.isThirdPlace&&<div style={{textAlign:"center",marginTop:4,fontSize:9,color:orange}}>🥉 Platz 3</div>}
     </button>
   </div>;
+}
+
+// ═══════════════════════════════════════════
+// GROUP OVERVIEW (Gruppenphase-Screen: Tabellen + Spielliste)
+// ═══════════════════════════════════════════
+function GroupOverview({groupPhase,config,onOpen,onStartKo,onTvOverview,onShowHelp,onReset,theme,toggleTheme,tvBlocked,onDismissTvBlocked}){
+  const table1=groupStandings(groupPhase.group1,[0,1,2,3]);
+  const table2=groupStandings(groupPhase.group2,[4,5,6,7]);
+  const complete=groupPhase.order.every(m=>m.winner!==null);
+  const renderStandings=(table,title)=>(
+    <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,padding:"12px 14px",flex:1,minWidth:220}}>
+      <div style={{fontSize:12,fontWeight:700,color:green,marginBottom:8}}>{title}</div>
+      {table.map((r,i)=><div key={r.team} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderTop:i>0?`1px solid ${bdrSoft}`:"none"}}>
+        <span style={{fontSize:12,color:i<2?textHi:textLow,fontWeight:i<2?700:400}}>{i+1}. {groupPhase.teams[r.team]}</span>
+        <span className="score-num" style={{fontSize:11,color:textLow}}>{r.won}S · {r.legDiff>0?"+":""}{r.legDiff}</span>
+      </div>)}
+    </div>
+  );
+  return(
+    <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:12,display:"flex",flexDirection:"column",gap:12}}>
+      <GlobalStyles/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+        <div>
+          <h2 style={{fontFamily:FD,fontSize:18,fontWeight:800,color:textHi,letterSpacing:"-0.01em",margin:0}}>{config.name}</h2>
+          <div style={{fontSize:11,color:textLow,marginTop:2}}>Gruppenphase</div>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button onClick={onTvOverview} aria-label="TV-Übersicht öffnen" style={{background:colBlueDk,border:`1px solid ${colBlue}`,color:colBlue,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11}}>📺 TV-Übersicht</button>
+          <button onClick={onShowHelp} aria-label="Hilfe anzeigen" style={{background:surf2,border:`1px solid ${bdr}`,color:textLow,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11}}>?</button>
+          <button onClick={onReset} aria-label="Turnier zurücksetzen" style={{background:surf2,border:`1px solid ${bdr}`,color:textLow,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11}}>Neu</button>
+          <button onClick={toggleTheme} aria-label={theme==="dark"?"Zu Hellmodus wechseln":"Zu Dunkelmodus wechseln"} style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>{theme==="dark"?"☀️":"🌙"}</button>
+        </div>
+      </div>
+
+      {tvBlocked&&<div style={{background:colRedDk,border:`1px solid ${colRed}`,borderRadius:8,padding:"8px 14px",fontSize:11,color:colRed,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+        <span>Browser hat das TV-Fenster blockiert (Popup-Blocker). Popups für diese Seite erlauben, dann nochmal auf "TV-Übersicht" klicken.</span>
+        <button onClick={onDismissTvBlocked} aria-label="Hinweis schließen" style={{background:"none",border:"none",color:colRed,fontSize:14,cursor:"pointer",flexShrink:0}}>✕</button>
+      </div>}
+
+      <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+        {renderStandings(table1,"Gruppe 1")}
+        {renderStandings(table2,"Gruppe 2")}
+      </div>
+
+      <button onClick={onStartKo} disabled={!complete} style={{padding:"14px 0",background:complete?green:surf2,color:complete?bg:textOff,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:complete?"pointer":"default",fontFamily:F}}>{complete?"Weiter zur KO-Phase":"Erst alle Gruppenspiele beenden"}</button>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
+        {groupPhase.order.map(m=><MatchCard key={m.id} match={m} teams={groupPhase.teams} onOpen={onOpen}/>)}
+      </div>
+    </div>
+  );
 }
 
 function RulesModal({config,onClose}){
@@ -722,6 +798,7 @@ export default function DartTurnier(){
   const[showHelp,setShowHelp]=useState(false);
   const[confirmReset,setConfirmReset]=useState(false);
   const[bracket,setBracket]=useState(null);
+  const[groupPhase,setGroupPhase]=useState(null);
   const[activeMatchId,setActiveMatchId]=useState(null);
   const[sounds,setSounds]=useState({});
   const[tvBlocked,setTvBlocked]=useState(false);
@@ -733,11 +810,11 @@ export default function DartTurnier(){
   useEffect(()=>{(async()=>{
     const tvParam=new URLSearchParams(window.location.search).get('tv');
     const saved=await load();
-    if(saved?.bracket){
-      setBracket(saved.bracket);setConfig(saved.config||config);setSounds(saved.sounds||{});customSounds=saved.sounds||{};
+    if(saved?.bracket||saved?.groupPhase){
+      setBracket(saved.bracket||null);setGroupPhase(saved.groupPhase||null);setConfig(saved.config||config);setSounds(saved.sounds||{});customSounds=saved.sounds||{};
       if(tvParam==='overview'){setPhase("tv-overview");}
       else if(tvParam){setActiveMatchId(tvParam);setPhase("tv");}
-      else{setPhase("bracket");}
+      else{setPhase(saved.bracket?"bracket":"groups");}
     } else{setTeamNames(Array(8).fill(""));setPhase("setup");}
   })();},[]);
 
@@ -750,8 +827,8 @@ export default function DartTurnier(){
       if(e.key!==SK||!e.newValue)return;
       try{
         const s=JSON.parse(e.newValue);
-        if(!s?.bracket)return;
-        setBracket(s.bracket);
+        if(!s?.bracket&&!s?.groupPhase)return;
+        setBracket(s.bracket||null);setGroupPhase(s.groupPhase||null);
         // Falls das TV-Fenster schon offen war, bevor das Turnier gestartet wurde (noch auf "setup"
         // hängend), jetzt nachträglich in die TV-Ansicht wechseln statt für immer auf Setup zu bleiben
         setPhase(p=>{
@@ -765,7 +842,7 @@ export default function DartTurnier(){
     return()=>window.removeEventListener('storage',onSt);
   },[]);
 
-  useEffect(()=>{if(bracket)save({bracket,config,sounds});},[bracket,config,sounds]);
+  useEffect(()=>{if(bracket||groupPhase)save({bracket,groupPhase,config,sounds});},[bracket,groupPhase,config,sounds]);
 
   // Browser back button support
   useEffect(()=>{
@@ -792,8 +869,23 @@ export default function DartTurnier(){
 
   const startTournament=()=>{
     const names=shuffle(teamNames.map((n,i)=>n.trim()||`Team ${i+1}`));
-    const b=buildBracket(names,config);
-    propagateBracket(b); // Freilose aus Runde 1 sofort weiterreichen
+    if(config.teamSize===8){
+      setBracket(null);setGroupPhase(buildGroups(names));setPhase("groups");
+    } else {
+      const b=buildBracket(names,config);
+      propagateBracket(b); // Freilose aus Runde 1 sofort weiterreichen
+      setGroupPhase(null);setBracket(b);setPhase("bracket");
+    }
+  };
+
+  const startKoPhase=()=>{
+    const table1=groupStandings(groupPhase.group1,[0,1,2,3]);
+    const table2=groupStandings(groupPhase.group2,[4,5,6,7]);
+    // Gekreuzt: Halbfinale 1 = Gruppe-1-Erster vs. Gruppe-2-Zweiter, Halbfinale 2 = Gruppe-2-Erster vs. Gruppe-1-Zweiter
+    const koTeamIndices=[table1[0].team,table2[1].team,table2[0].team,table1[1].team];
+    const koTeamNames=koTeamIndices.map(i=>groupPhase.teams[i]);
+    const b=buildBracket(koTeamNames,{...config,finalLegsToWin:3,thirdPlace:true});
+    propagateBracket(b);
     setBracket(b);setPhase("bracket");
   };
 
@@ -806,10 +898,19 @@ export default function DartTurnier(){
   const back=()=>{setActiveMatchId(null);setPhase("bracket");};
 
   const handleUpdate=(updatedMatch)=>{
-    setBracket(prev=>{const b=structuredClone(prev);setMatchIn(b,updatedMatch);propagateBracket(b);return b;});
+    if(bracket&&getMatch(bracket,updatedMatch.id)){
+      setBracket(prev=>{const b=structuredClone(prev);setMatchIn(b,updatedMatch);propagateBracket(b);return b;});
+    } else if(groupPhase){
+      setGroupPhase(prev=>{
+        const gp=structuredClone(prev);
+        const replace=(arr)=>{const i=arr.findIndex(x=>x.id===updatedMatch.id);if(i!==-1)arr[i]=updatedMatch;};
+        replace(gp.group1);replace(gp.group2);replace(gp.order);
+        return gp;
+      });
+    }
   };
 
-  const resetTournament=()=>{clear();setBracket(null);setTeamNames(Array(config.teamSize).fill(""));setConfirmReset(false);setPhase("setup");};
+  const resetTournament=()=>{clear();setBracket(null);setGroupPhase(null);setTeamNames(Array(config.teamSize).fill(""));setConfirmReset(false);setPhase("setup");};
 
   if(phase==="loading")return<><GlobalStyles/><div style={{minHeight:"100vh",background:bg,color:textLow,fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center"}}>Lade...</div></>;
 
@@ -857,11 +958,19 @@ export default function DartTurnier(){
       </div>
 
       <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,padding:12,width:"100%",maxWidth:340}}>
-        <p style={{color:textLow,fontSize:10,margin:0,lineHeight:1.6}}>
-          <span style={{color:greenText}}>Vorrunden:</span> 501 Single Out · Best of {config.legsToWin*2-1}<br/>
-          {config.finalDoubleOut&&<><span style={{color:orange}}>Finale:</span> 501 Double Out · Best of {config.legsToWin*2-1}<br/></>}
-          {config.thirdPlace&&<><span style={{color:colBlue}}>Platz 3:</span> Verlierer der Halbfinals</>}
-        </p>
+        {config.teamSize===8?(
+          <p style={{color:textLow,fontSize:10,margin:0,lineHeight:1.6}}>
+            <span style={{color:greenText}}>Gruppenphase (2×4 Teams):</span> 501 Single Out · Best of 3<br/>
+            <span style={{color:orange}}>Halbfinale:</span> 501 Single Out · Best of 3<br/>
+            <span style={{color:colBlue}}>Finale{config.thirdPlace?" & Platz 3":""}:</span> 501{config.finalDoubleOut?" Double Out":" Single Out"} · Best of 5
+          </p>
+        ):(
+          <p style={{color:textLow,fontSize:10,margin:0,lineHeight:1.6}}>
+            <span style={{color:greenText}}>Vorrunden:</span> 501 Single Out · Best of {config.legsToWin*2-1}<br/>
+            {config.finalDoubleOut&&<><span style={{color:orange}}>Finale:</span> 501 Double Out · Best of {config.legsToWin*2-1}<br/></>}
+            {config.thirdPlace&&<><span style={{color:colBlue}}>Platz 3:</span> Verlierer der Halbfinals</>}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -870,10 +979,10 @@ export default function DartTurnier(){
   if(phase==="tv-overview"&&bracket)return<TvAuto bracket={bracket} theme={theme} toggleTheme={toggleTheme}/>;
 
   // ── SCORING / TV ──
-  if((phase==="scoring"||phase==="tv")&&bracket&&activeMatchId){
-    const result=getMatch(bracket,activeMatchId);
+  if((phase==="scoring"||phase==="tv")&&(bracket||groupPhase)&&activeMatchId){
+    const result=findMatchAnywhere(bracket,groupPhase,activeMatchId);
     if(!result)return null;
-    return<><GlobalStyles/><ScoringView match={result.match} teams={bracket.teams} roundName={result.round.name} isDoubleOut={result.round.isDoubleOut} onBack={back} onUpdate={handleUpdate} isTV={phase==="tv"} legsToWin={bracket.config.legsToWin}/></>;
+    return<><GlobalStyles/><ScoringView match={result.match} teams={result.teams} roundName={result.round.name} isDoubleOut={result.round.isDoubleOut} onBack={back} onUpdate={handleUpdate} isTV={phase==="tv"}/></>;
   }
 
   // ── STATS ──
@@ -881,6 +990,13 @@ export default function DartTurnier(){
 
   // ── SOUNDS ──
   if(phase==="settings")return<><GlobalStyles/><SettingsView sounds={sounds} onSave={(s)=>{setSounds(s);customSounds=s;}} onBack={()=>setPhase("bracket")}/></>;
+
+  // ── GRUPPENPHASE ──
+  if(phase==="groups"&&groupPhase)return<>
+    <GroupOverview groupPhase={groupPhase} config={config} onOpen={openMatch} onStartKo={startKoPhase} onTvOverview={openTvOverview} onShowHelp={()=>setShowHelp(true)} onReset={()=>setConfirmReset(true)} theme={theme} toggleTheme={toggleTheme} tvBlocked={tvBlocked} onDismissTvBlocked={()=>setTvBlocked(false)}/>
+    {showHelp&&<HelpModal onClose={()=>setShowHelp(false)}/>}
+    {confirmReset&&<ResetConfirmModal onCancel={()=>setConfirmReset(false)} onConfirm={resetTournament}/>}
+  </>;
 
   // ── BRACKET ──
   const champion=getChampion(bracket);
@@ -955,16 +1071,7 @@ export default function DartTurnier(){
         </div>
       </aside>
       {showHelp&&<HelpModal onClose={()=>setShowHelp(false)}/>}
-      {confirmReset&&<Modal titleId="reset-title" onClose={()=>setConfirmReset(false)} maxWidth={300} accent={colRed}>
-        <div style={{textAlign:"center"}}>
-          <h2 id="reset-title" style={{fontSize:13,fontWeight:700,color:textHi,marginBottom:8,fontFamily:F}}>Turnier zurücksetzen?</h2>
-          <div style={{fontSize:11,color:textLow,marginBottom:20,fontFamily:F}}>Alle Ergebnisse und Daten gehen verloren.</div>
-          <div style={{display:"flex",gap:8}}>
-            <button onClick={()=>setConfirmReset(false)} style={{flex:1,padding:"10px 0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:textMid,fontSize:12,cursor:"pointer",fontFamily:F}}>Abbrechen</button>
-            <button onClick={resetTournament} style={{flex:1,padding:"10px 0",background:colRedDk,border:`1px solid ${colRed}`,borderRadius:8,color:colRed,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>Zurücksetzen</button>
-          </div>
-        </div>
-      </Modal>}
+      {confirmReset&&<ResetConfirmModal onCancel={()=>setConfirmReset(false)} onConfirm={resetTournament}/>}
     </div>
   );
 }
