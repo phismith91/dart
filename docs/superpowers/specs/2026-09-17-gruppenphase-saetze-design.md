@@ -7,11 +7,21 @@ bisher nur Single Elimination (7 Spiele + optional Platz-3-Spiel).
 Neu festgelegt fürs reale Turnier:
 
 - 2 Gruppen à 4 Teams (Rundenspiele), danach KO-Playoff.
-- Match-Format: Best-of-3-Sätze (2 Gewinnsätze gewinnen das Match),
-  ein Satz = Best-of-3-Legs.
+- **Unterschiedliches Match-Format je Phase** (Entscheidung nach
+  Zeit-Diskussion, siehe unten):
+  - Gruppenphase: direktes Best-of-3-Legs (wer zuerst 2 Legs gewinnt,
+    gewinnt das Spiel — max. 3 Legs) — das ist bereits der heutige
+    Standard-Modus der App (`legsToWin:2`), keine Änderung nötig.
+  - KO-Phase (Halbfinale, Finale, Platz 3): Best-of-3-Sätze (2
+    Gewinnsätze gewinnen das Match), ein Satz = Best-of-3-Legs.
 - Wer welchen Spieler pro Satz einsetzt (Team hat 2 Spieler, freie
   Zuordnung, Wiederholung nur im 3. Satz erlaubt) wird **nicht**
   softwareseitig abgebildet — das regelt der Spielleiter von Hand.
+- Team→Gruppe-Zuordnung wird ausgelost (Zufall, wie beim bestehenden
+  K.o.-Draw).
+- Spielreihenfolge in der Gruppenphase wechselt zwischen den Gruppen
+  ab: 1. Spiel Gruppe 1, 2. Spiel Gruppe 2, 3. Spiel Gruppe 1, usw.
+  (nicht erst alle 6 Spiele von Gruppe 1, dann Gruppe 2).
 
 ## Verhältnis zu `feature/gruppenphase` (16.08.)
 
@@ -27,10 +37,12 @@ unangetastet für eine mögliche spätere, größere Iteration.
 
 ## Zeitfaktor (dokumentiert, keine offene Entscheidung)
 
-16 Spiele total (12 Gruppenspiele + 4 KO), Sätze-Format ≈ 4–9 Legs/Match
-(Ø ~5–6) statt bisheriger flacher Best-of-3-Legs (Ø ~2,4) — spürbar
-längerer Abend als reines K.o. (8 Spiele, Ø ~2,4 Legs). Bewusst in Kauf
-genommen (reines K.o. wäre "doof" — Teams sollen mehrere Spiele haben).
+16 Spiele total (12 Gruppenspiele + 4 KO). Durch die Format-Aufteilung
+bleibt es überschaubar: Gruppenphase mit Best-of-3-Legs ≈ 2–3 Legs/Spiel
+(Ø ~2,4) × 12 ≈ 29 Legs, KO-Phase mit Sätzen ≈ 4–9 Legs/Spiel (Ø ~5–6)
+× 4 ≈ 20–24 Legs. Zusammen ≈ 50–53 Legs am Abend — spürbar mehr Spiele
+für alle als reines K.o. (8 Spiele, ≈ 19 Legs), aber ohne dass die
+Gruppenphase allein schon den Abend sprengt.
 
 ## Scope
 
@@ -39,9 +51,11 @@ genommen (reines K.o. wäre "doof" — Teams sollen mehrere Spiele haben).
   (Gruppe-A-1. vs. Gruppe-B-2., Gruppe-B-1. vs. Gruppe-A-2.), Finale,
   Spiel um Platz 3 (Verlierer-Halbfinale) — nutzt die bereits
   vorhandene `thirdPlace`-Logik in `buildBracket` unverändert.
-- Match-Format einheitlich für Gruppen- und KO-Phase: `setsToWin: 2`,
-  `legsPerSet: 2` (Engine-Semantik: `legsPerSet` = Legs, die zum
-  Satzgewinn nötig sind → 2 = Best-of-3-Legs).
+- Gruppenspiele: bestehendes Flach-Format (`legsToWin:2`), unverändert.
+- KO-Spiele: `setsToWin: 2`, `legsPerSet: 2` (Engine-Semantik:
+  `legsPerSet` = Legs, die zum Satzgewinn nötig sind → 2 =
+  Best-of-3-Legs).
+- Gruppenspiel-Reihenfolge alterniert zwischen den beiden Gruppen.
 - Keine Spieler-pro-Satz-Zuordnung in der Software.
 
 **Out of scope:** mehr/andere Gruppengrößen, Swiss, Double-Elim,
@@ -57,12 +71,21 @@ damit `ScoringView`/`MatchCard`/`TvMatchCard` unverändert weiterlaufen:
 
 - `buildGroups(teams)` — 8 Team-Indizes (nach bestehendem `shuffle()`
   bereits gemischt) → 2 Gruppen à 4, Round-Robin-Spielplan pro Gruppe
-  (Standard-Spielplan für 4 Teilnehmer, 3 Runden × 2 Spiele), Matches
-  im bestehenden Match-Shape, `createGame({startScore:501,
-  checkoutMode:"single", setsToWin:2, legsPerSet:2, dartsPerTurn:3})`.
+  (Standard-Spielplan für 4 Teilnehmer, 3 Runden × 2 Spiele = 6 Spiele/
+  Gruppe). Matches entstehen über das **bestehende, unveränderte**
+  `newMatch(id,t1,t2,...,legsToWin=2)` — Gruppenspiele laufen also im
+  heutigen Flach-Legs-Modus, keine Engine-Config-Änderung nötig.
+  Die 12 Matches werden anschließend Gruppe-für-Gruppe im Wechsel
+  einsortiert (`G1[0],G2[0],G1[1],G2[1],…,G1[5],G2[5]`), das steuert
+  die Anzeige-/Spielreihenfolge in der UI.
+- Nur für die KO-Phase (4 Matches) bekommt `newMatch`/`buildBracket`
+  eine neue Config-Variante: `createGame({startScore:501,
+  checkoutMode, setsToWin:2, legsPerSet:2, dartsPerTurn:3})` statt
+  `legsToWin` — das ist die einzige Stelle, die das Sätze-Format nutzt.
 - `groupStandings(group)` — Tabelle: Siege, Tiebreak-Reihenfolge
-  Satzdifferenz → Legdifferenz → direkter Vergleich (Head-to-Head aus
-  dem bereits gespielten Gruppenspiel der beiden Teams). Bleibt auch
+  Legdifferenz (Gruppenspiele haben keine Sätze, also kein Satzdiff-
+  Kriterium) → direkter Vergleich (Head-to-Head aus dem bereits
+  gespielten Gruppenspiel der beiden Teams). Bleibt auch
   danach noch ein Gleichstand (z.B. 3er-Zirkel gleicher Bilanz), zeigt
   die UI die Teams als punktgleich an — Auflösung dann manuell durch
   den Spielleiter (Los), kein weiterer Software-Tiebreak nötig für
@@ -81,11 +104,14 @@ damit `ScoringView`/`MatchCard`/`TvMatchCard` unverändert weiterlaufen:
   einzige Weg für 8 Teams bei diesem Turnier) — aber `teamSize` bleibt
   variabel für andere Nutzungen der App; Gruppenphase nur aktiv wenn
   `teamSize === 8` (sonst bisheriges reines K.o. wie gehabt).
-- Neue `GroupOverview`-Komponente: 2 Tabellen (Platz, Team, S-N, Satzdiff,
-  Legdiff), analog zur bestehenden `StatsView`-Kartenoptik.
-- `ScoringView`: zusätzliche Satzanzeige (aktueller Satzstand X:Y) über
-  der bestehenden Leg-Anzeige — Daten kommen aus `state.sets`, das die
-  Engine bei gesetztem `setsToWin` bereits liefert.
+- Neue `GroupOverview`-Komponente: 2 Tabellen (Platz, Team, S-N, Legdiff),
+  analog zur bestehenden `StatsView`-Kartenoptik, plus die alternierende
+  Spielliste (Gruppe 1/Gruppe 2 im Wechsel) darunter.
+- `ScoringView`: zusätzliche Satzanzeige (aktueller Satzstand X:Y) nur
+  wenn `state.sets` gesetzt ist (liefert die Engine automatisch nur bei
+  `setsToWin`-Config, also nur bei KO-Matches) — Gruppenspiele zeigen
+  weiterhin nur die reine Leg-Anzeige wie heute, keine Sonderfall-Logik
+  nötig.
 - TV-Ansicht: Gruppentabellen während Phase 1, automatischer Wechsel zur
   bestehenden Bracket-TV-Optik sobald KO-Phase läuft.
 
@@ -109,4 +135,4 @@ Finale) vor Merge, kein Playwright-Aufbau nötig für diesen kleineren Scope.
 Alles aus der `feature/gruppenphase`-Spec, was dort schon als "später"
 markiert ist (Swiss, Double-Elim, Multi-Board, Spieler-DB, Cross-Device-
 Sync) sowie ein konfigurierbarer Format-Umschalter — dieses Design ist
-fix auf "8 Teams, 2 Gruppen, Sätze-Format" zugeschnitten.
+fix auf "8 Teams, 2 Gruppen, Legs in der Gruppe, Sätze im K.o." zugeschnitten.
