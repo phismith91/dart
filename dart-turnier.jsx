@@ -79,7 +79,12 @@ function buildBracket(teams,config){
   const rounds=[];
   for(let r=0;r<numRounds;r++){
     const matchCount=bracketSize/Math.pow(2,r+1);
-    const isDoubleOut=r===numRounds-1&&config.finalDoubleOut;
+    const isFinal=r===numRounds-1;
+    const isDoubleOut=isFinal&&config.finalDoubleOut;
+    // finalLegsToWin ist optional (Default: config.legsToWin, also unverändertes
+    // Verhalten für den bestehenden reinen K.o.-Modus) — nur die letzte Runde und
+    // das Platz-3-Spiel nutzen ihn, analog zum bestehenden finalDoubleOut-Muster.
+    const legsToWinHere=isFinal?(config.finalLegsToWin??config.legsToWin):config.legsToWin;
     const matches=[];
     for(let m=0;m<matchCount;m++){
       let t1=null,t2=null;
@@ -94,18 +99,19 @@ function buildBracket(teams,config){
           t2=i2<n?i2:null;
         }
       }
-      const match=newMatch(`r${r}m${m}`,t1,t2,r,false,isDoubleOut,config.legsToWin);
+      const match=newMatch(`r${r}m${m}`,t1,t2,r,false,isDoubleOut,legsToWinHere);
       if(r===0&&(t1===null)!==(t2===null))match.winner=t1!==null?t1:t2; // Freilos: kampflos weiter
       matches.push(match);
     }
-    rounds.push({matches,name:ROUND_NAMES[numRounds]?.[r]||`Runde ${r+1}`,isDoubleOut});
+    rounds.push({matches,name:ROUND_NAMES[numRounds]?.[r]||`Runde ${r+1}`,isDoubleOut,legsToWin:legsToWinHere});
   }
   // Third-place match — nur sinnvoll, wenn beide Halbfinal-Slots durch ein echtes Spiel entschieden werden;
   // war eines davon selbst ein Freilos (möglich bei numRounds===2, z.B. 3 Teams), gibt es keinen Verlierer dafür
   const semifinalRound=rounds[numRounds-2];
   const semifinalHasFreilos=semifinalRound?.matches.some(m=>m.winner!==null);
   if(config.thirdPlace&&numRounds>=2&&!semifinalHasFreilos){
-    rounds.push({matches:[newMatch("3rd",null,null,numRounds,true,config.finalDoubleOut,config.legsToWin)],name:"Platz 3",isDoubleOut:config.finalDoubleOut});
+    const thirdLegsToWin=config.finalLegsToWin??config.legsToWin;
+    rounds.push({matches:[newMatch("3rd",null,null,numRounds,true,config.finalDoubleOut,thirdLegsToWin)],name:"Platz 3",isDoubleOut:config.finalDoubleOut,legsToWin:thirdLegsToWin});
   }
   return{teams:[...teams],rounds,config};
 }
@@ -582,6 +588,9 @@ function MatchCard({match,teams,onOpen}){
 
 function RulesModal({config,onClose}){
   const bo=config.legsToWin*2-1;
+  const finalLegsToWin=config.finalLegsToWin??config.legsToWin;
+  const finalBo=finalLegsToWin*2-1;
+  const hasStaggeredFinal=finalLegsToWin!==config.legsToWin;
   return(
     <Modal titleId="rules-title" onClose={onClose} maxWidth={440}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
@@ -598,7 +607,8 @@ function RulesModal({config,onClose}){
           <div><span style={{color:green}}>Vorrunden — Single Out</span>: letzter Dart darf auf jedes Feld gehen, Hauptsache Rest exakt 0.</div>
           {config.finalDoubleOut&&<div><span style={{color:orange}}>Finale{config.thirdPlace?" & Spiel um Platz 3":""} — Double Out</span>: letzter Dart muss auf ein Doppelfeld oder Bullseye (Bull = 50, zählt als Doppel). Landet der letzte Dart auf Single/Triple statt Doppel obwohl Rest 0 wäre → ebenfalls Bust.</div>}
           <div style={{marginTop:12,color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>MATCH</div>
-          <div>Best of {bo} Legs — wer zuerst <span style={{color:greenText}}>{config.legsToWin}</span> Legs gewinnt, gewinnt das Match. Danach ist Schluss, auch wenn rechnerisch noch Legs offen wären.</div>
+          <div>Best of {bo} Legs — wer zuerst <span style={{color:greenText}}>{config.legsToWin}</span> Legs gewinnt, gewinnt das Match{hasStaggeredFinal?" (Vorrunden & Halbfinale)":""}. Danach ist Schluss, auch wenn rechnerisch noch Legs offen wären.</div>
+          {hasStaggeredFinal&&<div><span style={{color:greenText}}>{config.thirdPlace?"Finale & Spiel um Platz 3":"Finale"}</span>: Best of {finalBo} Legs — wer zuerst {finalLegsToWin} Legs gewinnt.</div>}
           <div>Wer im 1. Leg beginnt, wird vor dem Match festgelegt (Auswahl oder Zufall). Danach wechselt das Anwurfrecht nach jedem Leg.</div>
           <div style={{marginTop:12,color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>TURNIER</div>
           <div>K.-o.-System — einmal verloren bedeutet raus (außer Halbfinal-Verlierer, siehe unten).</div>
@@ -909,7 +919,7 @@ export default function DartTurnier(){
             <div key={rIdx} style={{display:"flex",flexDirection:"column",gap:10,minWidth:190}}>
               <div style={{textAlign:"center",paddingBottom:4,borderBottom:`1px solid ${bdrSoft}`}}>
                 <div style={{fontSize:12,fontWeight:700,color:round.isDoubleOut?orange:green}}>{round.name}</div>
-                <div style={{fontSize:10,color:textLow,marginTop:2}}>501 · {round.isDoubleOut?"Double Out":"Single Out"} · Bo{config.legsToWin*2-1}</div>
+                <div style={{fontSize:10,color:textLow,marginTop:2}}>501 · {round.isDoubleOut?"Double Out":"Single Out"} · Bo{round.legsToWin*2-1}</div>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:10,justifyContent:"space-around",minHeight:rIdx===0?"auto":rIdx===mainRounds.length-2?260:280}}>
                 {round.matches.map(m=><MatchCard key={m.id} match={m} teams={bracket.teams} onOpen={openMatch}/>)}
@@ -919,7 +929,7 @@ export default function DartTurnier(){
           {thirdRound&&<div style={{display:"flex",flexDirection:"column",gap:10,minWidth:190}}>
             <div style={{textAlign:"center",paddingBottom:4,borderBottom:`1px solid ${bdrSoft}`}}>
               <div style={{fontSize:12,fontWeight:700,color:colBlue}}>{thirdRound.name}</div>
-              <div style={{fontSize:10,color:textLow,marginTop:2}}>501 · {thirdRound.isDoubleOut?"Double Out":"Single Out"} · Bo{config.legsToWin*2-1}</div>
+              <div style={{fontSize:10,color:textLow,marginTop:2}}>501 · {thirdRound.isDoubleOut?"Double Out":"Single Out"} · Bo{thirdRound.legsToWin*2-1}</div>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:10,justifyContent:"center",minHeight:280}}>
               {thirdRound.matches.map(m=><MatchCard key={m.id} match={m} teams={bracket.teams} onOpen={openMatch}/>)}
