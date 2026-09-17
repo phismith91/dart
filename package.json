@@ -19,10 +19,11 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "test": "node tests/engine.test.js && node tests/logger.test.js && node tests/tournament.test.js",
+    "test": "node tests/engine.test.js && node tests/logger.test.js && node tests/tournament.test.js && node tests/groups.test.js",
     "test:engine": "node tests/engine.test.js",
     "test:logger": "node tests/logger.test.js",
-    "test:tournament": "node tests/tournament.test.js"
+    "test:tournament": "node tests/tournament.test.js",
+    "test:groups": "node tests/groups.test.js"
   },
   "keywords": [
     "darts",

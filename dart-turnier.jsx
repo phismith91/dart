@@ -1,8 +1,9 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as Tone from "tone";
-import { createGame, throwTotal, throwDarts, undoTurn, undoLeg as engineUndoLeg, setStarter, getStats } from "./src/engine.js";
+import { throwTotal, throwDarts, undoTurn, undoLeg as engineUndoLeg, setStarter, getStats } from "./src/engine.js";
 import { getCheckout as engineGetCheckout } from "./src/checkouts.js";
 import { IMPOSSIBLE_TOTALS, dartValue, dartLabel } from "./src/types.js";
+import { newMatch, buildGroups, groupStandings } from "./groups.js";
 
 // ═══════════════════════════════════════════
 // CONSTANTS
@@ -58,14 +59,6 @@ const getInitialTheme=()=>{try{return localStorage.getItem(THEME_KEY)||"dark";}c
 // BRACKET ENGINE (dynamic team count)
 // ═══════════════════════════════════════════
 function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-
-// Scoring läuft über die getestete Engine (src/engine.js) statt über von Hand nachgebaute
-// Bust-/Leg-/Match-Logik — jedes Match trägt sein eigenes, unabhängiges Engine-Spiel in .game.
-// Bracket-Struktur (t1/t2/winner/Freilose/Auslosung) bleibt unverändert eigenständig (Layer B).
-function newMatch(id,t1,t2,roundIdx,isThirdPlace=false,isDoubleOut=false,legsToWin=2){
-  return{id,t1,t2,roundIdx,isThirdPlace,winner:null,started:false,
-    game:createGame({startScore:501,checkoutMode:isDoubleOut?"double":"single",legsToWin,dartsPerTurn:3})};
-}
 
 // Aus dem Engine-Turn-Log (interleaved, beide Spieler) die Pro-Spieler-Wurf-Historie des
 // aktuellen Legs ableiten — für die Verlaufs-Anzeige, die Engine trackt nur turns[] gesamt.
