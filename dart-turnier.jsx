@@ -156,7 +156,17 @@ function findMatchAnywhere(bracket,groupPhase,id){
   if(bracket){const r=getMatch(bracket,id);if(r)return{...r,teams:bracket.teams};}
   if(groupPhase){
     const m=groupPhase.order.find(x=>x.id===id);
+    // .includes() funktioniert hier nur, weil groupPhase.order dieselben Objekt-Referenzen
+    // enthält wie group1/group2 (buildGroups() befüllt order direkt aus group1/group2-Arrays,
+    // structuredClone beim Speichern/Laden erhält diese gemeinsame Identität pro Snapshot).
     if(m)return{match:m,round:{name:groupPhase.group1.includes(m)?"Gruppe 1":"Gruppe 2",isDoubleOut:false},teams:groupPhase.teams};
+  }
+  return null;
+}
+function findLiveGroupMatch(groupPhase){
+  for(const m of groupPhase.order){
+    const started=m.started||m.game.turns.length>0||m.game.legResults.length>0;
+    if(started&&m.winner===null)return{match:m,round:{name:groupPhase.group1.includes(m)?"Gruppe 1":"Gruppe 2",isDoubleOut:false}};
   }
   return null;
 }
@@ -762,20 +772,53 @@ function TvOverview({bracket}){
   );
 }
 
-// Ein Screen fürs Publikum: zeigt Bracket-Übersicht, springt automatisch ins
+function TvGroupOverview({groupPhase}){
+  const table1=groupStandings(groupPhase.group1,[0,1,2,3]);
+  const table2=groupStandings(groupPhase.group2,[4,5,6,7]);
+  const renderTable=(table,title)=>(
+    <div style={{flex:1,minWidth:280}}>
+      <div style={{textAlign:"center",paddingBottom:6,borderBottom:`2px solid ${bdrSoft}`,fontSize:16,fontWeight:700,color:green}}>{title}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:2,marginTop:10}}>
+        {table.map((r,i)=><div key={r.team} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:i<2?greenDark:card,borderRadius:8}}>
+          <span style={{fontSize:15,fontWeight:i<2?700:500,color:i<2?greenText:textHi}}>{i+1}. {groupPhase.teams[r.team]}</span>
+          <span className="score-num" style={{fontSize:14,color:textLow}}>{r.won}S · {r.legDiff>0?"+":""}{r.legDiff}</span>
+        </div>)}
+      </div>
+    </div>
+  );
+  return(
+    <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,padding:"24px 32px",display:"flex",flexDirection:"column",gap:20}}>
+      <GlobalStyles/>
+      <h2 style={{fontFamily:FD,fontSize:28,fontWeight:800,margin:0}}>Gruppenphase</h2>
+      <div style={{display:"flex",gap:24,flexWrap:"wrap"}}>
+        {renderTable(table1,"Gruppe 1")}
+        {renderTable(table2,"Gruppe 2")}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
+        {groupPhase.order.map(m=><TvMatchCard key={m.id} match={m} teams={groupPhase.teams}/>)}
+      </div>
+    </div>
+  );
+}
+
+// Ein Screen fürs Publikum: zeigt Bracket- oder Gruppen-Übersicht, springt automatisch ins
 // laufende Match (Vollbild) sobald eins startet, und kurz nach Spielende
 // (Sieger-Einblendung) wieder zurück zur Übersicht.
-function TvAuto({bracket,theme,toggleTheme}){
+function TvAuto({bracket,groupPhase,config,theme,toggleTheme}){
   const[pinnedId,setPinnedId]=useState(null);
   const[showRules,setShowRules]=useState(false);
-  const live=findLiveMatch(bracket);
+  const live=bracket?findLiveMatch(bracket):(groupPhase?findLiveGroupMatch(groupPhase):null);
 
   useEffect(()=>{
     if(live){setPinnedId(live.match.id);return;}
     if(pinnedId){const t=setTimeout(()=>setPinnedId(null),5000);return()=>clearTimeout(t);}
-  },[bracket]);
+  },[bracket,groupPhase]);
 
-  const focus=live||(pinnedId?getMatch(bracket,pinnedId):null);
+  const findPinned=()=>{
+    if(!pinnedId)return null;
+    return findMatchAnywhere(bracket,groupPhase,pinnedId);
+  };
+  const focus=live||findPinned();
   // Nur Buttons, ohne eigene Positionierung — Aufrufer entscheidet, ob fixed (Übersicht, hat
   // keinen eigenen Header) oder eingereiht (Live-Match, hat schon einen Header mit ✕-Button an
   // derselben Ecke — fixed hätte sich früher damit überlagert).
@@ -783,9 +826,13 @@ function TvAuto({bracket,theme,toggleTheme}){
     <button onClick={()=>setShowRules(true)} aria-label="Regeln anzeigen" style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>📜 Regeln</button>
     <button onClick={toggleTheme} aria-label={theme==="dark"?"Zu Hellmodus wechseln":"Zu Dunkelmodus wechseln"} style={{background:surf2,border:`1px solid ${bdr}`,color:textMid,borderRadius:6,padding:"7px 10px",cursor:"pointer",fontSize:13}}>{theme==="dark"?"☀️":"🌙"}</button>
   </>;
-  const rules=showRules&&<RulesModal config={bracket.config} onClose={()=>setShowRules(false)}/>;
-  if(focus)return<><GlobalStyles/>{rules}<ScoringView match={focus.match} teams={bracket.teams} roundName={focus.round.name} isDoubleOut={focus.round.isDoubleOut} onBack={()=>{}} onUpdate={()=>{}} isTV={true} legsToWin={bracket.config.legsToWin} tvControls={buttons}/></>;
-  return<><div style={{position:"fixed",top:16,right:16,zIndex:150,display:"flex",gap:8}}>{buttons}</div>{rules}<TvOverview bracket={bracket}/></>;
+  // bracket.config trägt das tatsächlich verwendete finalLegsToWin/thirdPlace (wie beim
+  // Aufruf von buildBracket() in startKoPhase gesetzt) — das plain config-Prop hat das nicht,
+  // ist aber die richtige Quelle während der Gruppenphase (noch kein bracket vorhanden).
+  const rules=showRules&&<RulesModal config={bracket?bracket.config:config} onClose={()=>setShowRules(false)}/>;
+  if(focus)return<><GlobalStyles/>{rules}<ScoringView match={focus.match} teams={focus.teams||(bracket?bracket.teams:groupPhase.teams)} roundName={focus.round.name} isDoubleOut={focus.round.isDoubleOut} onBack={()=>{}} onUpdate={()=>{}} isTV={true} tvControls={buttons}/></>;
+  const overview=bracket?<TvOverview bracket={bracket}/>:<TvGroupOverview groupPhase={groupPhase}/>;
+  return<><div style={{position:"fixed",top:16,right:16,zIndex:150,display:"flex",gap:8}}>{buttons}</div>{rules}{overview}</>;
 }
 
 // ═══════════════════════════════════════════
@@ -976,7 +1023,7 @@ export default function DartTurnier(){
   );
 
   // ── TV-ÜBERSICHT (dauerhafter Zuschauer-Screen) ──
-  if(phase==="tv-overview"&&bracket)return<TvAuto bracket={bracket} theme={theme} toggleTheme={toggleTheme}/>;
+  if(phase==="tv-overview"&&(bracket||groupPhase))return<TvAuto bracket={bracket} groupPhase={groupPhase} config={config} theme={theme} toggleTheme={toggleTheme}/>;
 
   // ── SCORING / TV ──
   if((phase==="scoring"||phase==="tv")&&(bracket||groupPhase)&&activeMatchId){
