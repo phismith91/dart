@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as Tone from "tone";
 import { throwTotal, throwDarts, undoTurn, undoLeg as engineUndoLeg, setStarter, getStats } from "./src/engine.js";
 import { getCheckout as engineGetCheckout } from "./src/checkouts.js";
-import { IMPOSSIBLE_TOTALS, dartValue, dartLabel } from "./src/types.js";
+import { IMPOSSIBLE_TOTALS, dartValue, dartLabel, isValidDart } from "./src/types.js";
 import { newMatch, buildGroups, groupStandings } from "./groups.js";
 
 // ═══════════════════════════════════════════
@@ -292,7 +292,8 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
   const[npad,setNpad]=useState("");
   const[showStarter,setShowStarter]=useState(!match.started);
   const[darts,setDarts]=useState([]);
-  const[mm,setMm]=useState("S");
+  const[dartInput,setDartInput]=useState("");
+  const[dartInputError,setDartInputError]=useState(false);
 
   const t1=match.t1!==null?teams[match.t1]:"—";
   const t2=match.t2!==null?teams[match.t2]:"—";
@@ -348,7 +349,36 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
   const dv=(d)=>dartValue(d.field,d.multi);
   const dl=(d)=>dartLabel(d.field,d.multi);
   const dTotal=darts.reduce((s,d)=>s+dv(d),0);
-  const addDart=(f)=>{if(darts.length>=3)return;if(f===25&&mm==="T")return;setDarts([...darts,{field:f,multi:f===0?"S":mm}]);};
+  const addDart=(f,multi)=>{if(darts.length>=3)return;setDarts([...darts,{field:f,multi}]);};
+
+  // Parst "T20"/"D25"/"0" usw. aus dem manuellen Text-Feld — auch mehrere auf
+  // einmal, komma-/leerzeichengetrennt ("T20, S5, T2"), da User intuitiv gleich
+  // die ganze Aufnahme eintippen. Alles-oder-nichts: ein ungültiges Token lehnt
+  // den gesamten Eintrag ab, statt nur einen Teil der Darts stumm zu übernehmen.
+  // Baut die neuen Darts direkt per setDarts zusammen statt addDart() in einer
+  // Schleife aufzurufen — addDart liest darts.length aus dem Closure, mehrere
+  // Aufrufe in derselben Funktion würden sich sonst gegenseitig überschreiben
+  // statt zu addieren (React batcht setState, jeder Aufruf sähe denselben alten
+  // darts-Stand).
+  const parseDartToken=(tok)=>{
+    if(tok==="0")return{field:0,multi:"S"};
+    const match=tok.match(/^([SDT])(\d{1,2})$/);
+    const field=match?Number(match[2]):NaN;
+    const multi=match?match[1]:null;
+    if(!match||!isValidDart(field,multi))return null;
+    return{field,multi};
+  };
+  const submitDartInput=()=>{
+    const raw=dartInput.trim().toUpperCase();
+    if(!raw)return;
+    const tokens=raw.split(/[,\s]+/).filter(Boolean);
+    const fail=()=>{setDartInputError(true);setTimeout(()=>setDartInputError(false),600);};
+    if(darts.length+tokens.length>3){fail();return;}
+    const parsed=tokens.map(parseDartToken);
+    if(parsed.some(d=>d===null)){fail();return;}
+    setDarts([...darts,...parsed]);
+    setDartInput("");
+  };
 
   // ── TV VIEW ──
   if(isTV){
@@ -432,21 +462,45 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
   const renderNumpad=()=>{const proj=npad?rem-Number(npad):null;return<div style={{padding:"6px 10px",flex:1,display:"flex",flexDirection:"column"}}><div className="score-num" style={{textAlign:"center",padding:"4px 0",fontSize:32,fontWeight:700,color:npad?textHi:textOff,minHeight:44}}>{npad||"0"}</div><div style={{textAlign:"center",fontSize:11,minHeight:18,color:proj===null?textOff:proj<0||proj===1&&isDoubleOut?colRed:proj===0?green:textMid,marginBottom:4}}>{proj===null?"Rest eingeben":proj<0||(proj===1&&isDoubleOut)?"BUST":proj===0?"Checkout!":` → Rest: ${proj}`}</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,flex:1}}>{[1,2,3,4,5,6,7,8,9].map(d=><button key={d} onClick={()=>npad.length<3&&setNpad(npad+d)} style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:8,padding:"12px 0",fontSize:20,color:textHi,cursor:"pointer",fontFamily:F,fontWeight:600}}>{d}</button>)}<button onClick={()=>setNpad("")} style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:8,padding:"12px 0",fontSize:13,color:textLow,cursor:"pointer",fontFamily:F}}>C</button><button onClick={()=>npad.length<3&&setNpad(npad+"0")} style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:8,padding:"12px 0",fontSize:20,color:textHi,cursor:"pointer",fontFamily:F,fontWeight:600}}>0</button><button onClick={()=>{if(npad){addScore(Number(npad));setNpad("");}}} style={{background:npad?green:surf2,border:`1px solid ${npad?green:bdr}`,borderRadius:8,padding:"12px 0",fontSize:14,color:npad?bg:textOff,cursor:npad?"pointer":"default",fontFamily:F,fontWeight:700}}>OK</button></div></div>;}
 
   const renderDarts=()=>{
-    const mc={S:textMid,D:green,T:colRed};const ml={S:"Single",D:"Double",T:"Triple"};const fields=[20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1];
+    const mc={S:textMid,D:green,T:colRed};
+    const highFields=[20,19,18,17,16,15,14,13,12,11];
+    const lowFields=[10,9,8,7,6,5,4,3,2,1];
+    const dis3=darts.length>=3;
+    const cell=(field,multi,label)=><button key={multi} onClick={()=>addDart(field,multi)} aria-disabled={dis3?"true":undefined} aria-label={field===25?(multi==="D"?"Bullseye":"Single Bull"):`${multi==="S"?"Single":multi==="D"?"Double":"Triple"} ${field}`} style={{background:dis3?bg:surf2,border:`1px solid ${dis3?bdrSoft:bdr}`,borderRadius:6,padding:"6px 0",color:dis3?textOff:mc[multi],fontSize:14,fontWeight:600,cursor:dis3?"default":"pointer",fontFamily:F}}>{label}</button>;
+    const halfHeader=<div style={{display:"grid",gridTemplateColumns:"20px 1fr 1fr 1fr",gap:3,padding:"0 0 3px"}}>
+      <div/>
+      {["S","D","T"].map(m=><div key={m} style={{textAlign:"center",fontSize:10,fontWeight:700,color:mc[m],letterSpacing:"0.05em"}}>{m}</div>)}
+    </div>;
+    const renderHalf=(list)=><div style={{display:"flex",flexDirection:"column",gap:3,flex:1}}>
+      {halfHeader}
+      {list.map(f=><div key={f} style={{display:"grid",gridTemplateColumns:"20px 1fr 1fr 1fr",gap:3,alignItems:"center"}}>
+        <div style={{fontSize:10,color:textLow,textAlign:"right",paddingRight:2}}>{f}</div>
+        {cell(f,"S",f)}
+        {cell(f,"D",f*2)}
+        {cell(f,"T",f*3)}
+      </div>)}
+    </div>;
     return<div style={{padding:"6px 8px",flex:1,display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",gap:6,justifyContent:"center",padding:"6px 0",minHeight:42}}>
         {[0,1,2].map(i=><div key={i} style={{width:70,padding:"6px 0",borderRadius:8,textAlign:"center",background:darts[i]?greenDark:card,border:`1px solid ${darts[i]?greenBdr:bdr}`}}>{darts[i]?<><div style={{fontSize:14,fontWeight:700,color:mc[darts[i].multi]}}>{dl(darts[i])}</div><div style={{fontSize:9,color:textLow}}>{dv(darts[i])}</div></>:<div style={{fontSize:11,color:textOff}}>Dart {i+1}</div>}</div>)}
         {darts.length>0&&<div style={{alignSelf:"center",padding:"6px 10px",background:colBlueDk,borderRadius:8,border:`1px solid ${colBlue}`}}><div className="score-num" style={{fontSize:18,fontWeight:700,color:textHi}}>{dTotal}</div></div>}
       </div>
-      <div style={{display:"flex",gap:6,padding:"4px 0 8px",justifyContent:"center"}}>
-        {["S","D","T"].map(m=><button key={m} onClick={()=>setMm(m)} aria-pressed={mm===m} style={{flex:1,maxWidth:100,padding:"10px 0",borderRadius:8,background:mm===m?(m==="S"?colBlueDk:m==="D"?greenDark:colRedDk):card,border:`2px solid ${mm===m?mc[m]:bdr}`,color:mm===m?mc[m]:textLow,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>{ml[m]}</button>)}
+      <div style={{display:"flex",gap:6}}>
+        {renderHalf(highFields)}
+        {renderHalf(lowFields)}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:5,flex:1,alignContent:"start"}}>
-        {fields.map(f=>{const v=f*(mm==="T"?3:mm==="D"?2:1);const dis3=darts.length>=3;return<button key={f} onClick={()=>addDart(f)} aria-disabled={dis3?"true":undefined} style={{background:dis3?bg:surf2,border:`1px solid ${dis3?bdrSoft:bdr}`,borderRadius:6,padding:"10px 0",color:dis3?textOff:mc[mm],fontSize:15,fontWeight:600,cursor:dis3?"default":"pointer",fontFamily:F}}><div>{f}</div><div style={{fontSize:9,color:textLow}}>{v}</div></button>})}
-        <button onClick={()=>darts.length<3&&addDart(25)} aria-disabled={darts.length>=3||mm==="T"?"true":undefined} style={{background:darts.length>=3||mm==="T"?bg:surf2,border:`1px solid ${darts.length>=3||mm==="T"?bdrSoft:bdr}`,borderRadius:6,padding:"10px 0",color:darts.length>=3||mm==="T"?textOff:orange,fontSize:13,fontWeight:700,cursor:darts.length>=3||mm==="T"?"default":"pointer",fontFamily:F}}><div>Bull</div><div style={{fontSize:9,color:textLow}}>{mm==="D"?50:25}</div></button>
-        <button onClick={()=>darts.length<3&&addDart(0)} aria-disabled={darts.length>=3?"true":undefined} style={{background:darts.length>=3?bg:surf2,border:`1px solid ${darts.length>=3?bdrSoft:bdr}`,borderRadius:6,padding:"10px 0",color:darts.length>=3?textOff:textLow,fontSize:13,fontWeight:600,cursor:darts.length>=3?"default":"pointer",fontFamily:F}}><div>Miss</div></button>
+      <div style={{display:"grid",gridTemplateColumns:"20px 1fr 1fr 1fr",gap:3,alignItems:"center",marginTop:4}}>
+        <div style={{fontSize:9,color:textLow,textAlign:"right",paddingRight:2}}>Bull</div>
+        {cell(25,"S",25)}
+        {cell(25,"D",50)}
+        <div/>
       </div>
-      <div style={{display:"flex",gap:6,padding:"8px 0"}}>
+      <button onClick={()=>!dis3&&addDart(0,"S")} aria-disabled={dis3?"true":undefined} style={{marginTop:6,padding:"8px 0",background:dis3?bg:surf2,border:`1px solid ${dis3?bdrSoft:bdr}`,borderRadius:6,color:dis3?textOff:textLow,fontSize:12,fontWeight:600,cursor:dis3?"default":"pointer",fontFamily:F}}>Miss</button>
+      <div style={{display:"flex",gap:6,padding:"10px 0 4px"}}>
+        <input value={dartInput} onChange={e=>{setDartInput(e.target.value);setDartInputError(false);}} onKeyDown={e=>{if(e.key==="Enter")submitDartInput();}} placeholder="z.B. T20, D25, 0" aria-label="Dart manuell eingeben" style={{flex:1,background:surf2,border:`1px solid ${dartInputError?colRed:bdr}`,borderRadius:6,padding:"8px 10px",color:textHi,fontFamily:F,fontSize:13,boxSizing:"border-box"}}/>
+        <button onClick={submitDartInput} disabled={dis3||!dartInput.trim()} style={{padding:"0 16px",background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:green,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>OK</button>
+      </div>
+      <div style={{display:"flex",gap:6,padding:"4px 0"}}>
         <button onClick={()=>darts.length&&setDarts(darts.slice(0,-1))} disabled={!darts.length} aria-label="Letzten Dart entfernen" style={{flex:1,padding:"0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:darts.length?orange:textOff,fontSize:14,fontFamily:F}}>↩</button>
         <button onClick={()=>{if(darts.length){addDarts(darts);setDarts([]);}}} style={{flex:2,padding:"10px 0",background:darts.length?green:surf2,border:`1px solid ${darts.length?green:bdr}`,borderRadius:8,color:darts.length?bg:textOff,fontSize:14,fontWeight:700,cursor:darts.length?"pointer":"default",fontFamily:F}}>{darts.length?`${dTotal} eintragen`:"Darts eingeben"}</button>
       </div>
@@ -665,8 +719,15 @@ function GroupOverview({groupPhase,config,onOpen,onStartKo,onTvOverview,onShowHe
 
       <button onClick={onStartKo} disabled={!complete} style={{padding:"14px 0",background:complete?green:surf2,color:complete?bg:textOff,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:complete?"pointer":"default",fontFamily:F}}>{complete?"Weiter zur KO-Phase":"Erst alle Gruppenspiele beenden"}</button>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
-        {groupPhase.order.map(m=><MatchCard key={m.id} match={m} teams={groupPhase.teams} onOpen={onOpen}/>)}
+      <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:260,display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{fontSize:11,fontWeight:700,color:green}}>Gruppe 1</div>
+          {groupPhase.group1.map(m=><MatchCard key={m.id} match={m} teams={groupPhase.teams} onOpen={onOpen}/>)}
+        </div>
+        <div style={{flex:1,minWidth:260,display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{fontSize:11,fontWeight:700,color:green}}>Gruppe 2</div>
+          {groupPhase.group2.map(m=><MatchCard key={m.id} match={m} teams={groupPhase.teams} onOpen={onOpen}/>)}
+        </div>
       </div>
     </div>
   );
@@ -794,8 +855,15 @@ function TvGroupOverview({groupPhase}){
         {renderTable(table1,"Gruppe 1")}
         {renderTable(table2,"Gruppe 2")}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
-        {groupPhase.order.map(m=><TvMatchCard key={m.id} match={m} teams={groupPhase.teams}/>)}
+      <div style={{display:"flex",gap:24,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:300,display:"flex",flexDirection:"column",gap:14}}>
+          <div style={{fontSize:14,fontWeight:700,color:green}}>Gruppe 1</div>
+          {groupPhase.group1.map(m=><TvMatchCard key={m.id} match={m} teams={groupPhase.teams}/>)}
+        </div>
+        <div style={{flex:1,minWidth:300,display:"flex",flexDirection:"column",gap:14}}>
+          <div style={{fontSize:14,fontWeight:700,color:green}}>Gruppe 2</div>
+          {groupPhase.group2.map(m=><TvMatchCard key={m.id} match={m} teams={groupPhase.teams}/>)}
+        </div>
       </div>
     </div>
   );
