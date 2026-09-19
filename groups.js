@@ -34,7 +34,6 @@ function roundRobinPairs4(idx){
  *   über das bestehende shuffle() in dart-turnier.jsx.
  */
 export function buildGroups(teams){
-  if(teams.length!==8)return{error:"NEED_EIGHT_TEAMS"};
   const buildGroupMatches=(groupTeams,groupIdx)=>{
     const rounds=roundRobinPairs4(groupTeams);
     const matches=[];

@@ -284,7 +284,7 @@ const GLOBAL_STYLES_CSS=`
 // ═══════════════════════════════════════════
 // SCORING VIEW
 // ═══════════════════════════════════════════
-function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,legsToWin=2,tvControls}){
+function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvControls}){
   const[ap,setAp]=useState(match.game.legStarter+1);
   const[bustMsg,setBust]=useState(null);
   const[tab,setTab]=useState(0);
