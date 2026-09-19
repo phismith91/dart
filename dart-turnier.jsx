@@ -708,8 +708,15 @@ function GroupOverview({groupPhase,config,onOpen,onStartKo,onTvOverview,onShowHe
 
       <button onClick={onStartKo} disabled={!complete} style={{padding:"14px 0",background:complete?green:surf2,color:complete?bg:textOff,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:complete?"pointer":"default",fontFamily:F}}>{complete?"Weiter zur KO-Phase":"Erst alle Gruppenspiele beenden"}</button>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
-        {groupPhase.order.map(m=><MatchCard key={m.id} match={m} teams={groupPhase.teams} onOpen={onOpen}/>)}
+      <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:260,display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{fontSize:11,fontWeight:700,color:green}}>Gruppe 1</div>
+          {groupPhase.group1.map(m=><MatchCard key={m.id} match={m} teams={groupPhase.teams} onOpen={onOpen}/>)}
+        </div>
+        <div style={{flex:1,minWidth:260,display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{fontSize:11,fontWeight:700,color:green}}>Gruppe 2</div>
+          {groupPhase.group2.map(m=><MatchCard key={m.id} match={m} teams={groupPhase.teams} onOpen={onOpen}/>)}
+        </div>
       </div>
     </div>
   );
