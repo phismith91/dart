@@ -2,7 +2,7 @@
 // DartForge Rules Engine — Checkouts
 // ═══════════════════════════════════════════
 
-import { SINGLE_DART_VALUES, dartValue } from './types.js';
+import { SINGLE_DART_VALUES, dartLabel } from './types.js';
 
 /** Standard double-out checkout paths (most common/optimal routes) */
 const DO_TABLE = {
@@ -31,7 +31,7 @@ const DO_TABLE = {
   69:"T19 D6",68:"T20 D4",67:"T17 D8",66:"T10 D18",65:"T19 D4",
   64:"T16 D8",63:"T13 D12",62:"T10 D16",61:"T15 D8",60:"S20 D20",
   59:"S19 D20",58:"S18 D20",57:"S17 D20",56:"S16 D20",55:"S15 D20",
-  54:"S14 D20",53:"S13 D20",52:"S12 D20",51:"S11 D20",50:"S10 D20",
+  54:"S14 D20",53:"S13 D20",52:"S12 D20",51:"S11 D20",50:"Bull",
   49:"S9 D20",48:"S8 D20",47:"S7 D20",46:"S6 D20",45:"S5 D20",
   44:"S4 D20",43:"S3 D20",42:"S2 D20",41:"S1 D20",40:"D20",
   38:"D19",36:"D18",34:"D17",32:"D16",30:"D15",28:"D14",26:"D13",
@@ -42,6 +42,15 @@ const DO_TABLE = {
   19:"S3 D8",17:"S1 D8",15:"S7 D4",13:"S5 D4",11:"S3 D4",
   9:"S1 D4",7:"S3 D2",5:"S1 D2",3:"S1 D1",
 };
+
+/** Which (field,multiplier) produces a given one-dart value — for Single-Out-Vorschläge. */
+function singleDartFor(v) {
+  if (v === 50) return { field: 25, multiplier: 'D' };
+  if (v === 25) return { field: 25, multiplier: 'S' };
+  if (v <= 20) return { field: v, multiplier: 'S' };
+  if (v % 2 === 0 && v <= 40) return { field: v / 2, multiplier: 'D' };
+  return { field: v / 3, multiplier: 'T' };
+}
 
 /**
  * Get checkout suggestion for a remaining score
@@ -54,7 +63,12 @@ export function getCheckout(remaining, mode, dartsLeft = 3) {
   if (remaining <= 0) return null;
 
   if (mode === 'single') {
-    if (remaining <= 60 && dartsLeft >= 1) return { path: `S${remaining}`, darts: 1 };
+    // Nur echte Ein-Dart-Werte (1-20, 25, 50 sowie deren Doppel/Triple) vorschlagen —
+    // "S52" o.ä. existiert nicht (kein Feld auf der Scheibe hat diesen Wert).
+    if (remaining <= 60 && dartsLeft >= 1 && SINGLE_DART_VALUES.has(remaining)) {
+      const dart = singleDartFor(remaining);
+      return { path: dartLabel(dart.field, dart.multiplier), darts: 1 };
+    }
     if (remaining <= 120 && dartsLeft >= 2) return { path: `setup + finish`, darts: 2 };
     if (remaining <= 180 && dartsLeft >= 3) return { path: `setup + finish`, darts: 3 };
     return null;
