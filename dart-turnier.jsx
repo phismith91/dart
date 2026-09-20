@@ -463,15 +463,15 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
 
   const renderDarts=()=>{
     const mc={S:textMid,D:green,T:colRed};
-    const highFields=[20,19,18,17,16,15,14,13,12,11];
-    const lowFields=[10,9,8,7,6,5,4,3,2,1];
+    const colA=[20,18,16,14,12,10,8,6,4,2];
+    const colB=[19,17,15,13,11,9,7,5,3,1];
     const dis3=darts.length>=3;
     const cell=(field,multi,label)=><button key={multi} onClick={()=>addDart(field,multi)} aria-disabled={dis3?"true":undefined} aria-label={field===25?(multi==="D"?"Bullseye":"Single Bull"):`${multi==="S"?"Single":multi==="D"?"Double":"Triple"} ${field}`} style={{background:dis3?bg:surf2,border:`1px solid ${dis3?bdrSoft:bdr}`,borderRadius:6,padding:"6px 0",color:dis3?textOff:mc[multi],fontSize:14,fontWeight:600,cursor:dis3?"default":"pointer",fontFamily:F}}>{label}</button>;
     const halfHeader=<div style={{display:"grid",gridTemplateColumns:"20px 1fr 1fr 1fr",gap:3,padding:"0 0 3px"}}>
       <div/>
       {["S","D","T"].map(m=><div key={m} style={{textAlign:"center",fontSize:10,fontWeight:700,color:mc[m],letterSpacing:"0.05em"}}>{m}</div>)}
     </div>;
-    const renderHalf=(list)=><div style={{display:"flex",flexDirection:"column",gap:3,flex:1}}>
+    const renderCol=(list)=><div style={{display:"flex",flexDirection:"column",gap:3,flex:1}}>
       {halfHeader}
       {list.map(f=><div key={f} style={{display:"grid",gridTemplateColumns:"20px 1fr 1fr 1fr",gap:3,alignItems:"center"}}>
         <div style={{fontSize:10,color:textLow,textAlign:"right",paddingRight:2}}>{f}</div>
@@ -486,8 +486,8 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
         {darts.length>0&&<div style={{alignSelf:"center",padding:"6px 10px",background:colBlueDk,borderRadius:8,border:`1px solid ${colBlue}`}}><div className="score-num" style={{fontSize:18,fontWeight:700,color:textHi}}>{dTotal}</div></div>}
       </div>
       <div style={{display:"flex",gap:6}}>
-        {renderHalf(highFields)}
-        {renderHalf(lowFields)}
+        {renderCol(colA)}
+        {renderCol(colB)}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"20px 1fr 1fr 1fr",gap:3,alignItems:"center",marginTop:4}}>
         <div style={{fontSize:9,color:textLow,textAlign:"right",paddingRight:2}}>Bull</div>
@@ -501,7 +501,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
         <button onClick={submitDartInput} disabled={dis3||!dartInput.trim()} style={{padding:"0 16px",background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:green,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>OK</button>
       </div>
       <div style={{display:"flex",gap:6,padding:"4px 0"}}>
-        <button onClick={()=>darts.length&&setDarts(darts.slice(0,-1))} disabled={!darts.length} aria-label="Letzten Dart entfernen" style={{flex:1,padding:"0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:darts.length?orange:textOff,fontSize:14,fontFamily:F}}>↩</button>
+        <button onClick={()=>darts.length&&setDarts(darts.slice(0,-1))} disabled={!darts.length} aria-label="Letzten Dart entfernen" title="Zuletzt eingegebenen Dart entfernen" style={{flex:1,padding:"0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:darts.length?orange:textOff,fontSize:12,fontWeight:600,fontFamily:F,whiteSpace:"nowrap"}}>Dart ↩</button>
         <button onClick={()=>{if(darts.length){addDarts(darts);setDarts([]);}}} style={{flex:2,padding:"10px 0",background:darts.length?green:surf2,border:`1px solid ${darts.length?green:bdr}`,borderRadius:8,color:darts.length?bg:textOff,fontSize:14,fontWeight:700,cursor:darts.length?"pointer":"default",fontFamily:F}}>{darts.length?`${dTotal} eintragen`:"Darts eingeben"}</button>
       </div>
     </div>;};
@@ -514,16 +514,16 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
         <button onClick={onBack} aria-label="Zurück" style={{background:"none",border:"none",color:textLow,fontSize:20,cursor:"pointer",padding:"0 12px 0 0"}}>←</button>
         <div style={{flex:1}}><span style={{fontSize:12,color:textMid}}>{roundName}</span><span style={{marginLeft:6,fontSize:9,padding:"2px 5px",background:isDoubleOut?orangeDark:greenDark,color:isDoubleOut?orange:green,borderRadius:4}}>{isDoubleOut?"DO":"SO"}</span></div>
         <span style={{fontSize:11,color:textLow,marginRight:6}}>Leg {curLeg}</span>
-        <button onClick={undoThrow} aria-label="Letzten Wurf zurücknehmen" style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:orange,fontSize:13,padding:"0 14px",cursor:"pointer",fontFamily:F,marginRight:4}}>↩</button>
-        {match.game.legResults.length>0&&<button onClick={undoLeg} aria-label="Letztes Leg zurücknehmen" style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:colRed,fontSize:11,padding:"0 10px",cursor:"pointer",fontFamily:F}}>↩L</button>}
+        <button onClick={undoThrow} aria-label="Letzte Aufnahme zurücknehmen" title="Letzte Aufnahme zurücknehmen" style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:orange,fontSize:12,fontWeight:600,padding:"0 10px",cursor:"pointer",fontFamily:F,marginRight:4,whiteSpace:"nowrap"}}>Wurf ↩</button>
+        {match.game.legResults.length>0&&<button onClick={undoLeg} aria-label="Letztes Leg zurücknehmen" title="Letztes Leg zurücknehmen" style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:colRed,fontSize:11,fontWeight:600,padding:"0 10px",cursor:"pointer",fontFamily:F,whiteSpace:"nowrap"}}>Leg ↩</button>}
       </div>
       <div style={{display:"flex",gap:8,padding:"8px 10px"}}>
-        {sides.map(({p,name,r,h,s,co})=><button key={p} onClick={()=>setAp(p)} aria-label={`${name}, Rest: ${r}`} aria-pressed={ap===p} style={{flex:1,padding:"8px 6px",borderRadius:10,background:ap===p?greenDark:card,border:`2px solid ${ap===p?green:bdr}`,display:"flex",flexDirection:"column",width:"100%"}}>
+        {sides.map(({p,name,r,h,s,co})=><div key={p} aria-label={`${name}, Rest: ${r}`} style={{flex:1,padding:"8px 6px",borderRadius:10,background:ap===p?greenDark:card,border:`2px solid ${ap===p?green:bdr}`,display:"flex",flexDirection:"column",width:"100%"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:11,color:ap===p?greenText:textLow,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:80}}>{name}</span><div style={{display:"flex",gap:2}}>{[0,1].map(i=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:i<s?green:bdr,border:`1px solid ${i<s?green:textOff}`}}/>)}</div></div>
           <div className="score-num" style={{fontSize:36,fontWeight:800,textAlign:"center",color:r===0?green:textHi,lineHeight:1.1}}>{r}</div>
           {co&&r<=170&&r>1&&<div style={{fontSize:9,color:orange,textAlign:"center",marginTop:2}}>{co}</div>}
           <div style={{fontSize:9,color:textOff,textAlign:"center",marginTop:3,height:14,overflow:"hidden"}}>{h.slice(-5).join("·")}</div>
-        </button>)}
+        </div>)}
       </div>
       {bustMsg&&<div aria-live="assertive" style={{textAlign:"center",padding:"4px 0",color:colRed,fontSize:18,fontWeight:800}}>{bustMsg}</div>}
       <div style={{borderBottom:`1px solid ${bdrSoft}`}}>
@@ -1010,7 +1010,7 @@ export default function DartTurnier(){
     const w=window.open(u.toString(),'dart-tv-overview','noopener');
     setTvBlocked(!w); // Browser hat das Popup unterdrückt — sichtbar melden statt stumm nichts zu tun
   };
-  const back=()=>{setActiveMatchId(null);setPhase("bracket");};
+  const back=()=>{setActiveMatchId(null);setPhase(bracket?"bracket":"groups");};
 
   const handleUpdate=(updatedMatch)=>{
     if(bracket&&getMatch(bracket,updatedMatch.id)){
