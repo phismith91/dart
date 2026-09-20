@@ -98,7 +98,7 @@ function buildBracket(teams,config){
           t2=i2<n?i2:null;
         }
       }
-      const match=newMatch(`r${r}m${m}`,t1,t2,r,false,isDoubleOut,legsToWinHere);
+      const match=newMatch(`r${r}m${m}`,t1,t2,r,false,isDoubleOut,legsToWinHere,config.startScore);
       if(r===0&&(t1===null)!==(t2===null))match.winner=t1!==null?t1:t2; // Freilos: kampflos weiter
       matches.push(match);
     }
@@ -110,7 +110,7 @@ function buildBracket(teams,config){
   const semifinalHasFreilos=semifinalRound?.matches.some(m=>m.winner!==null);
   if(config.thirdPlace&&numRounds>=2&&!semifinalHasFreilos){
     const thirdLegsToWin=config.finalLegsToWin??config.legsToWin;
-    rounds.push({matches:[newMatch("3rd",null,null,numRounds,true,config.finalDoubleOut,thirdLegsToWin)],name:"Platz 3",isDoubleOut:config.finalDoubleOut,legsToWin:thirdLegsToWin});
+    rounds.push({matches:[newMatch("3rd",null,null,numRounds,true,config.finalDoubleOut,thirdLegsToWin,config.startScore)],name:"Platz 3",isDoubleOut:config.finalDoubleOut,legsToWin:thirdLegsToWin});
   }
   return{teams:[...teams],rounds,config};
 }
@@ -745,7 +745,7 @@ function RulesModal({config,onClose}){
         </div>
         <div style={{fontSize:11,color:textLow,lineHeight:1.9,fontFamily:F}}>
           <div style={{color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>SPIEL</div>
-          <div>Jedes Leg startet bei <span style={{color:greenText}}>501</span> Punkten, runtergezählt bis exakt 0.</div>
+          <div>Jedes Leg startet bei <span style={{color:greenText}}>{config.startScore}</span> Punkten, runtergezählt bis exakt 0.</div>
           <div>Eine Aufnahme sind 3 Darts (weniger, wenn vorher schon exakt 0 erreicht).</div>
           <div>Geworfene Punkte werden direkt vom Rest abgezogen — höchste Kombination pro Aufnahme ist 180 (3× Triple 20).</div>
           <div>Rest unter 0 oder genau 1 (bei Double Out unmöglich fertigzuspielen) = <span style={{color:colRed}}>Bust</span>: die ganze Aufnahme zählt nicht, Rest bleibt wie vor dem Wurf.</div>
@@ -907,7 +907,7 @@ function TvAuto({bracket,groupPhase,config,theme,toggleTheme}){
 // ═══════════════════════════════════════════
 export default function DartTurnier(){
   const[phase,setPhase]=useState("loading");
-  const[config,setConfig]=useState({name:"Dart Turnier",date:"",teamSize:8,finalDoubleOut:true,thirdPlace:true,legsToWin:2});
+  const[config,setConfig]=useState({name:"Dart Turnier",date:"",teamSize:8,finalDoubleOut:true,thirdPlace:true,legsToWin:2,startScore:501});
   const[teamNames,setTeamNames]=useState([]);
   const[showHelp,setShowHelp]=useState(false);
   const[confirmReset,setConfirmReset]=useState(false);
@@ -984,7 +984,7 @@ export default function DartTurnier(){
   const startTournament=()=>{
     const names=shuffle(teamNames.map((n,i)=>n.trim()||`Team ${i+1}`));
     if(config.teamSize===8){
-      setBracket(null);setGroupPhase(buildGroups(names));setPhase("groups");
+      setBracket(null);setGroupPhase(buildGroups(names,config.startScore));setPhase("groups");
     } else {
       const b=buildBracket(names,config);
       propagateBracket(b); // Freilose aus Runde 1 sofort weiterreichen
@@ -1058,6 +1058,13 @@ export default function DartTurnier(){
             Spiel um Platz 3
           </button>
         </div>
+
+        <div style={{marginBottom:10}}>
+          <span style={{fontSize:10,color:textLow,display:"block",marginBottom:4}}>Spiellänge</span>
+          <div role="group" aria-label="Spiellänge" style={{display:"flex",gap:6}}>
+            {[301,501].map(v=><button key={v} onClick={()=>setConfig(c=>({...c,startScore:v}))} aria-pressed={config.startScore===v} style={{flex:1,padding:"8px 0",borderRadius:6,background:config.startScore===v?green:surf2,border:`1px solid ${config.startScore===v?green:bdr}`,color:config.startScore===v?bg:textMid,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>{v}</button>)}
+          </div>
+        </div>
       </div>
 
       <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:12,padding:16,width:"100%",maxWidth:340,marginBottom:12}}>
@@ -1074,14 +1081,14 @@ export default function DartTurnier(){
       <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,padding:12,width:"100%",maxWidth:340}}>
         {config.teamSize===8?(
           <p style={{color:textLow,fontSize:10,margin:0,lineHeight:1.6}}>
-            <span style={{color:greenText}}>Gruppenphase (2×4 Teams):</span> 501 Single Out · Best of 3<br/>
-            <span style={{color:orange}}>Halbfinale:</span> 501 Single Out · Best of 3<br/>
-            <span style={{color:colBlue}}>Finale{config.thirdPlace?" & Platz 3":""}:</span> 501{config.finalDoubleOut?" Double Out":" Single Out"} · Best of 5
+            <span style={{color:greenText}}>Gruppenphase (2×4 Teams):</span> {config.startScore} Single Out · Best of 3<br/>
+            <span style={{color:orange}}>Halbfinale:</span> {config.startScore} Single Out · Best of 3<br/>
+            <span style={{color:colBlue}}>Finale{config.thirdPlace?" & Platz 3":""}:</span> {config.startScore}{config.finalDoubleOut?" Double Out":" Single Out"} · Best of 5
           </p>
         ):(
           <p style={{color:textLow,fontSize:10,margin:0,lineHeight:1.6}}>
-            <span style={{color:greenText}}>Vorrunden:</span> 501 Single Out · Best of {config.legsToWin*2-1}<br/>
-            {config.finalDoubleOut&&<><span style={{color:orange}}>Finale:</span> 501 Double Out · Best of {config.legsToWin*2-1}<br/></>}
+            <span style={{color:greenText}}>Vorrunden:</span> {config.startScore} Single Out · Best of {config.legsToWin*2-1}<br/>
+            {config.finalDoubleOut&&<><span style={{color:orange}}>Finale:</span> {config.startScore} Double Out · Best of {config.legsToWin*2-1}<br/></>}
             {config.thirdPlace&&<><span style={{color:colBlue}}>Platz 3:</span> Verlierer der Halbfinals</>}
           </p>
         )}
@@ -1149,7 +1156,7 @@ export default function DartTurnier(){
             <div key={rIdx} style={{display:"flex",flexDirection:"column",gap:10,minWidth:190}}>
               <div style={{textAlign:"center",paddingBottom:4,borderBottom:`1px solid ${bdrSoft}`}}>
                 <div style={{fontSize:12,fontWeight:700,color:round.isDoubleOut?orange:green}}>{round.name}</div>
-                <div style={{fontSize:10,color:textLow,marginTop:2}}>501 · {round.isDoubleOut?"Double Out":"Single Out"} · Bo{round.legsToWin*2-1}</div>
+                <div style={{fontSize:10,color:textLow,marginTop:2}}>{bracket.config.startScore} · {round.isDoubleOut?"Double Out":"Single Out"} · Bo{round.legsToWin*2-1}</div>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:10,justifyContent:"space-around",minHeight:rIdx===0?"auto":rIdx===mainRounds.length-2?260:280}}>
                 {round.matches.map(m=><MatchCard key={m.id} match={m} teams={bracket.teams} onOpen={openMatch}/>)}
@@ -1159,7 +1166,7 @@ export default function DartTurnier(){
           {thirdRound&&<div style={{display:"flex",flexDirection:"column",gap:10,minWidth:190}}>
             <div style={{textAlign:"center",paddingBottom:4,borderBottom:`1px solid ${bdrSoft}`}}>
               <div style={{fontSize:12,fontWeight:700,color:colBlue}}>{thirdRound.name}</div>
-              <div style={{fontSize:10,color:textLow,marginTop:2}}>501 · {thirdRound.isDoubleOut?"Double Out":"Single Out"} · Bo{thirdRound.legsToWin*2-1}</div>
+              <div style={{fontSize:10,color:textLow,marginTop:2}}>{bracket.config.startScore} · {thirdRound.isDoubleOut?"Double Out":"Single Out"} · Bo{thirdRound.legsToWin*2-1}</div>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:10,justifyContent:"center",minHeight:280}}>
               {thirdRound.matches.map(m=><MatchCard key={m.id} match={m} teams={bracket.teams} onOpen={openMatch}/>)}

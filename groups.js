@@ -8,9 +8,9 @@
 // ═══════════════════════════════════════════
 import { createGame } from "./src/engine.js";
 
-export function newMatch(id,t1,t2,roundIdx,isThirdPlace=false,isDoubleOut=false,legsToWin=2){
+export function newMatch(id,t1,t2,roundIdx,isThirdPlace=false,isDoubleOut=false,legsToWin=2,startScore=501){
   return{id,t1,t2,roundIdx,isThirdPlace,winner:null,started:false,
-    game:createGame({startScore:501,checkoutMode:isDoubleOut?"double":"single",legsToWin,dartsPerTurn:3})};
+    game:createGame({startScore,checkoutMode:isDoubleOut?"double":"single",legsToWin,dartsPerTurn:3})};
 }
 
 // Round-Robin-Spielplan für 4 Teilnehmer (Circle-Method): 3 Runden × 2 Spiele,
@@ -33,12 +33,12 @@ function roundRobinPairs4(idx){
  *   zugehörigkeit (0-3 = Gruppe 1, 4-7 = Gruppe 2) — Auslosung passiert vorher
  *   über das bestehende shuffle() in dart-turnier.jsx.
  */
-export function buildGroups(teams){
+export function buildGroups(teams,startScore=501){
   const buildGroupMatches=(groupTeams,groupIdx)=>{
     const rounds=roundRobinPairs4(groupTeams);
     const matches=[];
     rounds.forEach((pairs,r)=>pairs.forEach(([t1,t2],m)=>{
-      matches.push(newMatch(`g${groupIdx}r${r}m${m}`,t1,t2,r));
+      matches.push(newMatch(`g${groupIdx}r${r}m${m}`,t1,t2,r,false,false,2,startScore));
     }));
     return matches;
   };
