@@ -64,12 +64,11 @@ function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Mat
 // aktuellen Legs ableiten — für die Verlaufs-Anzeige, die Engine trackt nur turns[] gesamt.
 function legHistory(game,player){return game.turns.filter(t=>t.player===player).map(t=>t.score);}
 
-// Checkout-Vorschlag fürs TV/Scoring — nutzt die echte Checkout-Tabelle aus src/checkouts.js,
-// blendet aber den generischen "setup + finish"-Platzhalter (>60 bei Single Out) aus: eine
-// konkrete Zahl oder nichts, kein vages "irgendwie hinfinden" auf dem Zuschauer-Screen.
+// Checkout-Vorschlag fürs TV/Scoring — nutzt die echte Checkout-Tabelle aus src/checkouts.js
+// (auch für Single Out ein echter Mehr-Dart-Pfad statt eines Platzhalters).
 function checkoutSuggestion(rem,isDoubleOut){
   const co=engineGetCheckout(rem,isDoubleOut?"double":"single");
-  return co&&co.path!=="setup + finish"?co.path:null;
+  return co?co.path:null;
 }
 
 function buildBracket(teams,config){

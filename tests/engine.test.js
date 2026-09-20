@@ -101,8 +101,15 @@ eq(getCheckout(60, 'single')?.path, 'T20', '60 SO: nur per Triple in einem Dart 
 eq(getCheckout(40, 'single')?.path, 'D20', '40 SO: Doppel statt nicht-existentem S40');
 eq(getCheckout(50, 'single')?.path, 'Bull', '50 SO: Bullseye');
 eq(getCheckout(25, 'single')?.path, 'S-Bull', '25 SO: einfacher Bull');
-eq(getCheckout(52, 'single')?.path, 'setup + finish', '52 SO: kein 1-Dart-Feld=52 — fällt auf 2-Dart-Platzhalter zurück (Bug vorher: fälschlich "S52")');
-eq(getCheckout(23, 'single')?.path, 'setup + finish', '23 SO: in einem Dart nicht erreichbar (kein S/D/T ergibt 23)');
+eq(getCheckout(52, 'single')?.path, 'T17 S1', '52 SO: kein 1-Dart-Feld=52 — jetzt echter 2-Dart-Pfad statt Platzhalter (Bug vorher: fälschlich "S52", danach nur "setup + finish")');
+eq(getCheckout(23, 'single')?.path, 'D11 S1', '23 SO: in einem Dart nicht erreichbar (kein S/D/T ergibt 23) — echter 2-Dart-Pfad statt Platzhalter');
+
+eq(getCheckout(52, 'single')?.path, 'T17 S1', '52 SO 2-dart');
+eq(getCheckout(52, 'single')?.darts, 2, '52 SO 2 darts');
+eq(getCheckout(100, 'single')?.path, 'T20 D20', '100 SO 2-dart');
+eq(getCheckout(121, 'single')?.path, 'T20 T20 S1', '121 SO 3-dart');
+eq(getCheckout(178, 'single'), null, '178 echter Bogey, auch Single Out unmöglich');
+eq(getCheckout(23, 'single', 1)?.path, undefined, '23 mit nur 1 Dart uebrig unerreichbar');
 
 suite('Checkout Validation');
 assert(isValidCheckoutDart(20, 'D', 'double'), 'D20 valid DO checkout');

@@ -52,6 +52,27 @@ function singleDartFor(v) {
   return { field: v / 3, multiplier: 'T' };
 }
 
+/** Sortierte 1-Dart-Werte, absteigend — Basis für die Single-Out-Pfadsuche. */
+const SORTED_DART_VALUES = [...SINGLE_DART_VALUES].filter(v => v > 0).sort((a, b) => b - a);
+
+/**
+ * Findet einen gültigen Single-Out-Pfad (kein Doppel-Zwang auf dem letzten
+ * Dart) mit möglichst wenigen Darts, greedy von oben nach unten. Liefert
+ * `null`, wenn der Rest mit `dartsLeft` Darts nicht exakt auf 0 geht
+ * (z.B. echte Bogey-Zahlen wie 178).
+ */
+function singleOutPath(remaining, dartsLeft) {
+  if (dartsLeft <= 0) return null;
+  if (SINGLE_DART_VALUES.has(remaining)) return [remaining];
+  if (dartsLeft === 1) return null;
+  for (const v of SORTED_DART_VALUES) {
+    if (v >= remaining) continue;
+    const rest = singleOutPath(remaining - v, dartsLeft - 1);
+    if (rest) return [v, ...rest];
+  }
+  return null;
+}
+
 /**
  * Get checkout suggestion for a remaining score
  * @param {number} remaining - Score remaining
@@ -63,15 +84,10 @@ export function getCheckout(remaining, mode, dartsLeft = 3) {
   if (remaining <= 0) return null;
 
   if (mode === 'single') {
-    // Nur echte Ein-Dart-Werte (1-20, 25, 50 sowie deren Doppel/Triple) vorschlagen —
-    // "S52" o.ä. existiert nicht (kein Feld auf der Scheibe hat diesen Wert).
-    if (remaining <= 60 && dartsLeft >= 1 && SINGLE_DART_VALUES.has(remaining)) {
-      const dart = singleDartFor(remaining);
-      return { path: dartLabel(dart.field, dart.multiplier), darts: 1 };
-    }
-    if (remaining <= 120 && dartsLeft >= 2) return { path: `setup + finish`, darts: 2 };
-    if (remaining <= 180 && dartsLeft >= 3) return { path: `setup + finish`, darts: 3 };
-    return null;
+    const path = singleOutPath(remaining, Math.min(dartsLeft, 3));
+    if (!path) return null;
+    const labels = path.map(v => { const d = singleDartFor(v); return dartLabel(d.field, d.multiplier); });
+    return { path: labels.join(' '), darts: path.length };
   }
 
   if (mode === 'double') {
