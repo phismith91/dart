@@ -501,7 +501,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
         <button onClick={submitDartInput} disabled={dis3||!dartInput.trim()} style={{padding:"0 16px",background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:green,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>OK</button>
       </div>
       <div style={{display:"flex",gap:6,padding:"4px 0"}}>
-        <button onClick={()=>darts.length&&setDarts(darts.slice(0,-1))} disabled={!darts.length} aria-label="Letzten Dart entfernen" title="Zuletzt eingegebenen Dart entfernen" style={{flex:1,padding:"0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:darts.length?orange:textOff,fontSize:12,fontWeight:600,fontFamily:F,whiteSpace:"nowrap"}}>Dart ↩</button>
+        <button onClick={()=>darts.length&&setDarts(darts.slice(0,-1))} disabled={!darts.length} aria-label="Letzten Dart entfernen" title="Letzten Dart entfernen" style={{flex:1,padding:"0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:darts.length?orange:textOff,fontSize:12,fontWeight:600,fontFamily:F,whiteSpace:"nowrap"}}>Dart ↩</button>
         <button onClick={()=>{if(darts.length){addDarts(darts);setDarts([]);}}} style={{flex:2,padding:"10px 0",background:darts.length?green:surf2,border:`1px solid ${darts.length?green:bdr}`,borderRadius:8,color:darts.length?bg:textOff,fontSize:14,fontWeight:700,cursor:darts.length?"pointer":"default",fontFamily:F}}>{darts.length?`${dTotal} eintragen`:"Darts eingeben"}</button>
       </div>
     </div>;};
