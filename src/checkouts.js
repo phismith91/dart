@@ -56,19 +56,31 @@ function singleDartFor(v) {
 const SORTED_DART_VALUES = [...SINGLE_DART_VALUES].filter(v => v > 0).sort((a, b) => b - a);
 
 /**
- * Findet einen gültigen Single-Out-Pfad (kein Doppel-Zwang auf dem letzten
- * Dart) mit möglichst wenigen Darts, greedy von oben nach unten. Liefert
- * `null`, wenn der Rest mit `dartsLeft` Darts nicht exakt auf 0 geht
- * (z.B. echte Bogey-Zahlen wie 178).
+ * Backtracking-Suche (größter Dart zuerst) für einen Single-Out-Pfad
+ * (kein Doppel-Zwang auf dem letzten Dart) mit exakt `n` Darts. `null`,
+ * wenn der Rest mit genau `n` Darts nicht exakt auf 0 geht.
  */
-function singleOutPath(remaining, dartsLeft) {
-  if (dartsLeft <= 0) return null;
-  if (SINGLE_DART_VALUES.has(remaining)) return [remaining];
-  if (dartsLeft === 1) return null;
+function pathOfLength(remaining, n) {
+  if (n === 1) return SINGLE_DART_VALUES.has(remaining) ? [remaining] : null;
   for (const v of SORTED_DART_VALUES) {
     if (v >= remaining) continue;
-    const rest = singleOutPath(remaining - v, dartsLeft - 1);
+    const rest = pathOfLength(remaining - v, n - 1);
     if (rest) return [v, ...rest];
+  }
+  return null;
+}
+
+/**
+ * Findet einen gültigen Single-Out-Pfad mit möglichst wenigen Darts —
+ * probiert Dart-Anzahl 1, 2, 3, ... aufsteigend durch, damit ein
+ * kürzerer Pfad nie von einem längeren verdeckt wird. Liefert `null`,
+ * wenn der Rest mit `dartsLeft` Darts nicht exakt auf 0 geht (z.B. echte
+ * Bogey-Zahlen wie 178).
+ */
+function singleOutPath(remaining, dartsLeft) {
+  for (let n = 1; n <= dartsLeft; n++) {
+    const path = pathOfLength(remaining, n);
+    if (path) return path;
   }
   return null;
 }
