@@ -339,7 +339,21 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
     return()=>window.removeEventListener("keydown",onKey);
   },[]);
 
-  const undoThrow=()=>{const res=undoTurn(match.game);if(res.result.error)return;const m=structuredClone(match);m.game=res.state;setAp(m.game.currentPlayer+1);onUpdate(m);};
+  // Zeigt nach dem Zurücknehmen die Darts der rückgängig gemachten Aufnahme wieder an,
+  // damit man einzelne Darts korrigieren statt die ganze Aufnahme neu eintippen kann.
+  // Nur möglich, wenn die Aufnahme über den Darts-Tab kam (turn.darts gesetzt) — bei
+  // Numpad/Grid/Favoriten kennt die Engine nur die Summe (turn.score), die bei einem
+  // Bust zudem nicht die tatsächlich eingegebene Zahl ist (Engine speichert sie nicht).
+  const undoThrow=()=>{
+    const lastTurn=match.game.turns[match.game.turns.length-1];
+    const res=undoTurn(match.game);
+    if(res.result.error)return;
+    const m=structuredClone(match);m.game=res.state;
+    setAp(m.game.currentPlayer+1);
+    if(lastTurn?.darts){setDarts(lastTurn.darts.map(d=>({field:d.field,multi:d.multiplier})));setTab(5);}
+    else if(lastTurn&&!lastTurn.isBust){setNpad(String(lastTurn.score));setTab(4);}
+    onUpdate(m);
+  };
   const undoLeg=()=>{const res=engineUndoLeg(match.game);if(res.result.error)return;const m=structuredClone(match);m.game=res.state;m.winner=null;setAp(m.game.currentPlayer+1);onUpdate(m);};
   const selectStarter=(p)=>{const res=setStarter(match.game,p-1);const m=structuredClone(match);m.game=res.state;m.started=true;setAp(p);setShowStarter(false);onUpdate(m);};
 
