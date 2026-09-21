@@ -52,6 +52,39 @@ function singleDartFor(v) {
   return { field: v / 3, multiplier: 'T' };
 }
 
+/** Sortierte 1-Dart-Werte, absteigend — Basis für die Single-Out-Pfadsuche. */
+const SORTED_DART_VALUES = [...SINGLE_DART_VALUES].filter(v => v > 0).sort((a, b) => b - a);
+
+/**
+ * Backtracking-Suche (größter Dart zuerst) für einen Single-Out-Pfad
+ * (kein Doppel-Zwang auf dem letzten Dart) mit exakt `n` Darts. `null`,
+ * wenn der Rest mit genau `n` Darts nicht exakt auf 0 geht.
+ */
+function pathOfLength(remaining, n) {
+  if (n === 1) return SINGLE_DART_VALUES.has(remaining) ? [remaining] : null;
+  for (const v of SORTED_DART_VALUES) {
+    if (v >= remaining) continue;
+    const rest = pathOfLength(remaining - v, n - 1);
+    if (rest) return [v, ...rest];
+  }
+  return null;
+}
+
+/**
+ * Findet einen gültigen Single-Out-Pfad mit möglichst wenigen Darts —
+ * probiert Dart-Anzahl 1, 2, 3, ... aufsteigend durch, damit ein
+ * kürzerer Pfad nie von einem längeren verdeckt wird. Liefert `null`,
+ * wenn der Rest mit `dartsLeft` Darts nicht exakt auf 0 geht (z.B. echte
+ * Bogey-Zahlen wie 178).
+ */
+function singleOutPath(remaining, dartsLeft) {
+  for (let n = 1; n <= dartsLeft; n++) {
+    const path = pathOfLength(remaining, n);
+    if (path) return path;
+  }
+  return null;
+}
+
 /**
  * Get checkout suggestion for a remaining score
  * @param {number} remaining - Score remaining
@@ -63,15 +96,10 @@ export function getCheckout(remaining, mode, dartsLeft = 3) {
   if (remaining <= 0) return null;
 
   if (mode === 'single') {
-    // Nur echte Ein-Dart-Werte (1-20, 25, 50 sowie deren Doppel/Triple) vorschlagen —
-    // "S52" o.ä. existiert nicht (kein Feld auf der Scheibe hat diesen Wert).
-    if (remaining <= 60 && dartsLeft >= 1 && SINGLE_DART_VALUES.has(remaining)) {
-      const dart = singleDartFor(remaining);
-      return { path: dartLabel(dart.field, dart.multiplier), darts: 1 };
-    }
-    if (remaining <= 120 && dartsLeft >= 2) return { path: `setup + finish`, darts: 2 };
-    if (remaining <= 180 && dartsLeft >= 3) return { path: `setup + finish`, darts: 3 };
-    return null;
+    const path = singleOutPath(remaining, Math.min(dartsLeft, 3));
+    if (!path) return null;
+    const labels = path.map(v => { const d = singleDartFor(v); return dartLabel(d.field, d.multiplier); });
+    return { path: labels.join(' '), darts: path.length };
   }
 
   if (mode === 'double') {
