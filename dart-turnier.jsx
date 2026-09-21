@@ -275,6 +275,8 @@ const GLOBAL_STYLES_CSS=`
       .bracket-main{grid-area:main;}
       .bracket-aside{grid-area:aside;}
     }
+    .darts-cols{display:flex;gap:6px;}
+    @media(max-width:380px){.darts-cols{flex-direction:column;}}
     @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;transform:none!important;}}
     @keyframes tv-bust{0%{opacity:0}5%{opacity:0.92}85%{opacity:0.92}100%{opacity:0}}
     @keyframes tv-winner{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
@@ -484,7 +486,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
         {[0,1,2].map(i=><div key={i} style={{width:70,padding:"6px 0",borderRadius:8,textAlign:"center",background:darts[i]?greenDark:card,border:`1px solid ${darts[i]?greenBdr:bdr}`}}>{darts[i]?<><div style={{fontSize:14,fontWeight:700,color:mc[darts[i].multi]}}>{dl(darts[i])}</div><div style={{fontSize:9,color:textLow}}>{dv(darts[i])}</div></>:<div style={{fontSize:11,color:textOff}}>Dart {i+1}</div>}</div>)}
         {darts.length>0&&<div style={{alignSelf:"center",padding:"6px 10px",background:colBlueDk,borderRadius:8,border:`1px solid ${colBlue}`}}><div className="score-num" style={{fontSize:18,fontWeight:700,color:textHi}}>{dTotal}</div></div>}
       </div>
-      <div style={{display:"flex",gap:6}}>
+      <div className="darts-cols">
         {renderCol(colA)}
         {renderCol(colB)}
       </div>
