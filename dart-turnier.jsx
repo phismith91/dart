@@ -298,8 +298,8 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
   const t2=match.t2!==null?teams[match.t2]:"—";
   const curLeg=match.game.legResults.length+1;
   const rem=ap===1?match.game.scores[0]:match.game.scores[1];
-  const co1=checkoutSuggestion(match.game.scores[0],isDoubleOut);
-  const co2=checkoutSuggestion(match.game.scores[1],isDoubleOut);
+  const co1=useMemo(()=>checkoutSuggestion(match.game.scores[0],isDoubleOut),[match.game.scores[0],isDoubleOut]);
+  const co2=useMemo(()=>checkoutSuggestion(match.game.scores[1],isDoubleOut),[match.game.scores[1],isDoubleOut]);
 
   // Gemeinsame Auswertung für throwTotal/throwDarts-Ergebnisse — Bust-/Sound-/Leg-/Match-Ende
   // kommt fertig aus der Engine, hier nur noch UI-Reaktion (Toast, Sound, wessen Zug/Sieger).
