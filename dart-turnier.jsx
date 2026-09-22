@@ -64,6 +64,16 @@ function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Mat
 // aktuellen Legs ableiten — für die Verlaufs-Anzeige, die Engine trackt nur turns[] gesamt.
 function legHistory(game,player){return game.turns.filter(t=>t.player===player).map(t=>t.score);}
 
+// Alle Aufnahmen des gesamten Spiels (abgeschlossene Legs aus legResults + laufendes Leg
+// aus turns) für die Verlauf-Anzeige — Engine räumt turns[] bei jedem Leg-Sieg leer, die
+// abgeschlossenen Legs liegen nur noch in legResults[].turns.
+function fullMatchHistory(game){
+  const entries=[];
+  game.legResults.forEach(lr=>lr.turns.forEach(t=>entries.push({...t,leg:lr.leg})));
+  game.turns.forEach(t=>entries.push({...t,leg:game.currentLeg}));
+  return entries;
+}
+
 // Checkout-Vorschlag fürs TV/Scoring — nutzt die echte Checkout-Tabelle aus src/checkouts.js
 // (auch für Single Out ein echter Mehr-Dart-Pfad statt eines Platzhalters).
 function checkoutSuggestion(rem,isDoubleOut){
@@ -339,7 +349,21 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
     return()=>window.removeEventListener("keydown",onKey);
   },[]);
 
-  const undoThrow=()=>{const res=undoTurn(match.game);if(res.result.error)return;const m=structuredClone(match);m.game=res.state;setAp(m.game.currentPlayer+1);onUpdate(m);};
+  // Zeigt nach dem Zurücknehmen die Darts der rückgängig gemachten Aufnahme wieder an,
+  // damit man einzelne Darts korrigieren statt die ganze Aufnahme neu eintippen kann.
+  // Nur möglich, wenn die Aufnahme über den Darts-Tab kam (turn.darts gesetzt) — bei
+  // Numpad/Grid/Favoriten kennt die Engine nur die Summe (turn.score), die bei einem
+  // Bust zudem nicht die tatsächlich eingegebene Zahl ist (Engine speichert sie nicht).
+  const undoThrow=()=>{
+    const lastTurn=match.game.turns[match.game.turns.length-1];
+    const res=undoTurn(match.game);
+    if(res.result.error)return;
+    const m=structuredClone(match);m.game=res.state;
+    setAp(m.game.currentPlayer+1);
+    if(lastTurn?.darts){setDarts(lastTurn.darts.map(d=>({field:d.field,multi:d.multiplier})));setTab(5);}
+    else if(lastTurn&&!lastTurn.isBust){setNpad(String(lastTurn.score));setTab(4);}
+    onUpdate(m);
+  };
   const undoLeg=()=>{const res=engineUndoLeg(match.game);if(res.result.error)return;const m=structuredClone(match);m.game=res.state;m.winner=null;setAp(m.game.currentPlayer+1);onUpdate(m);};
   const selectStarter=(p)=>{const res=setStarter(match.game,p-1);const m=structuredClone(match);m.game=res.state;m.started=true;setAp(p);setShowStarter(false);onUpdate(m);};
 
@@ -496,7 +520,10 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
         {cell(25,"D",50)}
         <div/>
       </div>
-      <button onClick={()=>!dis3&&addDart(0,"S")} aria-disabled={dis3?"true":undefined} style={{marginTop:6,padding:"8px 0",background:dis3?bg:surf2,border:`1px solid ${dis3?bdrSoft:bdr}`,borderRadius:6,color:dis3?textOff:textLow,fontSize:12,fontWeight:600,cursor:dis3?"default":"pointer",fontFamily:F}}>Miss</button>
+      <div style={{display:"flex",gap:6,marginTop:6}}>
+        <button onClick={()=>!dis3&&addDart(0,"S")} aria-disabled={dis3?"true":undefined} style={{flex:1,padding:"8px 0",background:dis3?bg:surf2,border:`1px solid ${dis3?bdrSoft:bdr}`,borderRadius:6,color:dis3?textOff:textLow,fontSize:12,fontWeight:600,cursor:dis3?"default":"pointer",fontFamily:F}}>Miss</button>
+        <button onClick={()=>!dis3&&setDarts([...darts,...Array(3-darts.length).fill({field:0,multi:"S"})])} aria-disabled={dis3?"true":undefined} title="Restliche Darts dieser Aufnahme als Miss eintragen" style={{flex:1,padding:"8px 0",background:dis3?bg:surf2,border:`1px solid ${dis3?bdrSoft:bdr}`,borderRadius:6,color:dis3?textOff:colRed,fontSize:12,fontWeight:600,cursor:dis3?"default":"pointer",fontFamily:F}}>Rest Miss</button>
+      </div>
       <div style={{display:"flex",gap:6,padding:"10px 0 4px"}}>
         <input value={dartInput} onChange={e=>{setDartInput(e.target.value);setDartInputError(false);}} onKeyDown={e=>{if(e.key==="Enter")submitDartInput();}} placeholder="z.B. T20, D25, 0" aria-label="Dart manuell eingeben" style={{flex:1,background:surf2,border:`1px solid ${dartInputError?colRed:bdr}`,borderRadius:6,padding:"8px 10px",color:textHi,fontFamily:F,fontSize:13,boxSizing:"border-box"}}/>
         <button onClick={submitDartInput} disabled={dis3||!dartInput.trim()} style={{padding:"0 16px",background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:green,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>OK</button>
@@ -506,6 +533,26 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
         <button onClick={()=>{if(darts.length){addDarts(darts);setDarts([]);}}} style={{flex:2,padding:"10px 0",background:darts.length?green:surf2,border:`1px solid ${darts.length?green:bdr}`,borderRadius:8,color:darts.length?bg:textOff,fontSize:14,fontWeight:700,cursor:darts.length?"pointer":"default",fontFamily:F}}>{darts.length?`${dTotal} eintragen`:"Darts eingeben"}</button>
       </div>
     </div>;};
+
+  // Wurfhistorie: alle Aufnahmen des Spiels, neueste zuerst — Einzeldarts wenn über den
+  // Darts-Tab eingegeben, sonst nur die Summe (Numpad/Zahl/Favoriten kennen keine Einzeldarts).
+  const renderHistory=()=>{
+    const entries=[...fullMatchHistory(match.game)].reverse();
+    if(!entries.length)return<div style={{textAlign:"center",color:textOff,fontSize:12,padding:"40px 20px"}}>Noch keine Aufnahmen in diesem Spiel.</div>;
+    return<div style={{padding:"6px 8px",flex:1,display:"flex",flexDirection:"column",gap:6,overflowY:"auto"}}>
+      {entries.map((t,i)=>{
+        const name=t.player===0?t1:t2;
+        const detail=t.darts?t.darts.map(d=>dartLabel(d.field,d.multiplier)).join(" · "):`${t.score} Punkte`;
+        return<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",background:card,border:`1px solid ${t.isBust?colRed:bdr}`,borderRadius:8}}>
+          <div style={{display:"flex",flexDirection:"column",gap:2}}>
+            <span style={{fontSize:9,color:textOff}}>Leg {t.leg} · {name}</span>
+            <span style={{fontSize:13,color:t.isBust?colRed:textHi,fontWeight:600}}>{detail}</span>
+          </div>
+          <span className="score-num" style={{fontSize:14,fontWeight:700,color:t.isBust?colRed:green}}>{t.isBust?"BUST":t.score}</span>
+        </div>;
+      })}
+    </div>;
+  };
 
   const sides=[{p:1,name:t1,r:match.game.scores[0],h:legHistory(match.game,0),s:match.game.legs[0],co:co1},{p:2,name:t2,r:match.game.scores[1],h:legHistory(match.game,1),s:match.game.legs[1],co:co2}];
 
@@ -529,7 +576,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
       {bustMsg&&<div aria-live="assertive" style={{textAlign:"center",padding:"4px 0",color:colRed,fontSize:18,fontWeight:800}}>{bustMsg}</div>}
       <div style={{borderBottom:`1px solid ${bdrSoft}`}}>
         <div role="tablist" style={{display:"flex",padding:"0 8px"}}>
-          {[{id:0,l:"Favoriten"},{id:5,l:"Darts"},{id:4,l:"Numpad"}].map(t=><button key={t.id} id={`tab-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls="scoring-tabpanel" onClick={()=>setTab(t.id)} style={{flex:1,padding:"6px 0",fontSize:11,background:"transparent",border:"none",borderBottom:tab===t.id?`2px solid ${green}`:"2px solid transparent",color:tab===t.id?green:textLow,cursor:"pointer",fontFamily:F,fontWeight:tab===t.id?700:400}}>{t.l}</button>)}
+          {[{id:0,l:"Favoriten"},{id:5,l:"Darts"},{id:4,l:"Numpad"},{id:6,l:"Verlauf"}].map(t=><button key={t.id} id={`tab-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls="scoring-tabpanel" onClick={()=>setTab(t.id)} style={{flex:1,padding:"6px 0",fontSize:11,background:"transparent",border:"none",borderBottom:tab===t.id?`2px solid ${green}`:"2px solid transparent",color:tab===t.id?green:textLow,cursor:"pointer",fontFamily:F,fontWeight:tab===t.id?700:400}}>{t.l}</button>)}
           <button onClick={()=>{const n=!showGrid;setShowGrid(n);if(n&&![1,2,3].includes(tab))setTab(1);if(!n&&[1,2,3].includes(tab))setTab(0);}} aria-expanded={showGrid} style={{padding:"6px 10px",fontSize:11,background:"transparent",border:"none",borderBottom:[1,2,3].includes(tab)?`2px solid ${green}`:"2px solid transparent",color:[1,2,3].includes(tab)?green:textLow,cursor:"pointer",fontFamily:F,fontWeight:[1,2,3].includes(tab)?700:400}}>Zahl {showGrid?"▲":"▼"}</button>
         </div>
         {showGrid&&<div role="tablist" style={{display:"flex",padding:"0 8px 4px"}}>
@@ -537,7 +584,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
         </div>}
       </div>
       <div id="scoring-tabpanel" role="tabpanel" aria-labelledby={`tab-${tab}`} style={{flex:1,display:"flex",flexDirection:"column",minHeight:250,overflowY:"auto"}}>
-        {tab===5&&renderDarts()}{tab===0&&renderFavs()}{tab===1&&renderGrid(0,60)}{tab===2&&renderGrid(61,120)}{tab===3&&renderGrid(121,180)}{tab===4&&renderNumpad()}
+        {tab===5&&renderDarts()}{tab===0&&renderFavs()}{tab===1&&renderGrid(0,60)}{tab===2&&renderGrid(61,120)}{tab===3&&renderGrid(121,180)}{tab===4&&renderNumpad()}{tab===6&&renderHistory()}
       </div>
     </div>
   );
