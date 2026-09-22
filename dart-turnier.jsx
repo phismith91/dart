@@ -44,7 +44,7 @@ const playSound=async(t)=>{try{const u=customSounds[t];if(u&&u.trim())playCustom
 // Schema, kein .game) beim Laden nicht mehr gezogen werden und die App crashen (sonst:
 // "Cannot read properties of undefined (reading 'legs')" bei leerem Bildschirm).
 const SK="dart-turnier-v3";
-const save=async(s)=>{try{await window.storage.set(SK,JSON.stringify(s));}catch(e){}};
+const save=async(s)=>{try{await window.storage.set(SK,JSON.stringify(s));return true;}catch(e){return false;}};
 const load=async()=>{try{const r=await window.storage.get(SK);return r?JSON.parse(r.value):null;}catch(e){return null;}};
 const clear=async()=>{try{await window.storage.delete(SK);}catch(e){}};
 
@@ -54,6 +54,16 @@ const clear=async()=>{try{await window.storage.delete(SK);}catch(e){}};
 const THEME_KEY="dart-turnier-theme";
 const applyTheme=(t)=>{document.documentElement.dataset.theme=t;try{localStorage.setItem(THEME_KEY,t);}catch(e){}};
 const getInitialTheme=()=>{try{return localStorage.getItem(THEME_KEY)||"dark";}catch(e){return "dark";}};
+
+// ═══════════════════════════════════════════
+// LIVE EVENTS (Bust/180/Checkout/Sieger vom Scoring-Gerät ans TV-Fenster senden)
+// ═══════════════════════════════════════════
+// Der native "storage"-Event feuert nur in ANDEREN Fenstern/Tabs, nie im schreibenden
+// selbst — genau das brauchen wir hier: das TV-Fenster reagiert, das Scoring-Gerät
+// (das den Sound/Flash schon lokal zeigt) bekommt kein doppeltes Echo. Eigener Key statt
+// im großen Turnierstand (SK), da es ein kurzlebiges Einmal-Signal ist, kein Zustand.
+const EVENT_KEY="dart-turnier-event";
+const broadcastEvent=(type,matchId)=>{try{localStorage.setItem(EVENT_KEY,JSON.stringify({type,matchId,ts:Date.now()}));}catch(e){}};
 
 // ═══════════════════════════════════════════
 // BRACKET ENGINE (dynamic team count)
@@ -317,12 +327,14 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
   const applyThrowResult=(res)=>{
     if(res.result.error){setBust("Unmöglich!");setTimeout(()=>setBust(null),1200);return;}
     const m=structuredClone(match);m.game=res.state;
-    if(res.result.type==="BUST"){setBust("BUST!");playSound("bust");setTimeout(()=>setBust(null),1200);setAp(m.game.currentPlayer+1);onUpdate(m);return;}
+    if(res.result.type==="BUST"){setBust("BUST!");playSound("bust");broadcastEvent("bust",match.id);setTimeout(()=>setBust(null),1200);setAp(m.game.currentPlayer+1);onUpdate(m);return;}
     const score=res.result.turn.score;
-    if(score===180)playSound("180");else if(score>=140)playSound("140");else if(score>=100)playSound("100");
+    if(score===180){playSound("180");broadcastEvent("180",match.id);}
+    else if(score>=140){playSound("140");broadcastEvent("140",match.id);}
+    else if(score>=100){playSound("100");broadcastEvent("100",match.id);}
     if(res.result.type==="LEG_WON"||res.result.type==="MATCH_WON"){
-      playSound("checkout");
-      if(res.result.type==="MATCH_WON"){m.winner=m.game.winner===0?m.t1:m.t2;setTimeout(()=>playSound("winner"),600);onUpdate(m);return;}
+      playSound("checkout");broadcastEvent("checkout",match.id);
+      if(res.result.type==="MATCH_WON"){m.winner=m.game.winner===0?m.t1:m.t2;setTimeout(()=>{playSound("winner");broadcastEvent("winner",match.id);},600);onUpdate(m);return;}
     }
     setAp(m.game.currentPlayer+1);onUpdate(m);
   };
@@ -347,6 +359,23 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
     window.addEventListener("keydown",onKey);
     return()=>window.removeEventListener("keydown",onKey);
   },[]);
+
+  // TV-Fenster hat kein eigenes Eingabegerät — bekommt Bust/180/Checkout/Sieger-Momente
+  // per Live-Event vom Scoring-Gerät (siehe broadcastEvent), statt sie nie zu sehen/hören.
+  useEffect(()=>{
+    if(!isTV)return;
+    const onSt=(e)=>{
+      if(e.key!==EVENT_KEY||!e.newValue)return;
+      try{
+        const ev=JSON.parse(e.newValue);
+        if(ev.matchId!==match.id)return;
+        if(ev.type==="bust"){setBust("BUST!");playSound("bust");setTimeout(()=>setBust(null),1200);}
+        else playSound(ev.type);
+      }catch(err){}
+    };
+    window.addEventListener("storage",onSt);
+    return()=>window.removeEventListener("storage",onSt);
+  },[isTV,match.id]);
 
   // Zeigt nach dem Zurücknehmen die Darts der rückgängig gemachten Aufnahme wieder an,
   // damit man einzelne Darts korrigieren statt die ganze Aufnahme neu eintippen kann.
@@ -566,6 +595,7 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
         <button onClick={onBack} aria-label="Zurück" style={{background:"none",border:"none",color:textLow,fontSize:20,cursor:"pointer",padding:"0 12px 0 0"}}>←</button>
         <div style={{flex:1}}><span style={{fontSize:12,color:textMid}}>{roundName}</span><span style={{marginLeft:6,fontSize:9,padding:"2px 5px",background:isDoubleOut?orangeDark:greenDark,color:isDoubleOut?orange:green,borderRadius:4}}>{isDoubleOut?"DO":"SO"}</span></div>
         <span style={{fontSize:11,color:textLow,marginRight:6}}>Leg {curLeg}</span>
+        {match.game.turns.length===0&&match.game.legResults.length===0&&<button onClick={()=>setShowStarter(true)} aria-label="Anwurf ändern" title="Anwurf ändern — geht nur, solange noch kein Dart geworfen wurde" style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:textLow,fontSize:11,fontWeight:600,padding:"0 10px",cursor:"pointer",fontFamily:F,marginRight:4,whiteSpace:"nowrap"}}>Anwurf ↺</button>}
         <button onClick={undoThrow} aria-label="Letzte Aufnahme zurücknehmen" title="Letzte Aufnahme zurücknehmen" style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:orange,fontSize:12,fontWeight:600,padding:"0 10px",cursor:"pointer",fontFamily:F,marginRight:4,whiteSpace:"nowrap"}}>Wurf ↩</button>
         {match.game.legResults.length>0&&<button onClick={undoLeg} aria-label="Letztes Leg zurücknehmen" title="Letztes Leg zurücknehmen" style={{background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:colRed,fontSize:11,fontWeight:600,padding:"0 10px",cursor:"pointer",fontFamily:F,whiteSpace:"nowrap"}}>Leg ↩</button>}
       </div>
@@ -727,7 +757,7 @@ function MatchCard({match,teams,onOpen}){
 // ═══════════════════════════════════════════
 // GROUP OVERVIEW (Gruppenphase-Screen: Tabellen + Spielliste)
 // ═══════════════════════════════════════════
-function GroupOverview({groupPhase,config,onOpen,onStartKo,onTvOverview,onShowHelp,onReset,theme,toggleTheme,tvBlocked,onDismissTvBlocked}){
+function GroupOverview({groupPhase,config,onOpen,onStartKo,onTvOverview,onShowHelp,onReset,theme,toggleTheme,tvBlocked,onDismissTvBlocked,saveError,onDismissSaveError}){
   const table1=groupStandings(groupPhase.group1,[0,1,2,3]);
   const table2=groupStandings(groupPhase.group2,[4,5,6,7]);
   const complete=groupPhase.order.every(m=>m.winner!==null);
@@ -759,6 +789,11 @@ function GroupOverview({groupPhase,config,onOpen,onStartKo,onTvOverview,onShowHe
       {tvBlocked&&<div style={{background:colRedDk,border:`1px solid ${colRed}`,borderRadius:8,padding:"8px 14px",fontSize:11,color:colRed,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
         <span>Browser hat das TV-Fenster blockiert (Popup-Blocker). Popups für diese Seite erlauben, dann nochmal auf "TV-Übersicht" klicken.</span>
         <button onClick={onDismissTvBlocked} aria-label="Hinweis schließen" style={{background:"none",border:"none",color:colRed,fontSize:14,cursor:"pointer",flexShrink:0}}>✕</button>
+      </div>}
+
+      {saveError&&<div style={{background:colRedDk,border:`1px solid ${colRed}`,borderRadius:8,padding:"8px 14px",fontSize:11,color:colRed,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+        <span>Automatisches Speichern fehlgeschlagen — Fortschritt könnte bei einem Neuladen verloren gehen.</span>
+        <button onClick={onDismissSaveError} aria-label="Hinweis schließen" style={{background:"none",border:"none",color:colRed,fontSize:14,cursor:"pointer",flexShrink:0}}>✕</button>
       </div>}
 
       <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
@@ -966,6 +1001,7 @@ export default function DartTurnier(){
   const[activeMatchId,setActiveMatchId]=useState(null);
   const[sounds,setSounds]=useState({});
   const[tvBlocked,setTvBlocked]=useState(false);
+  const[saveError,setSaveError]=useState(false);
   const[theme,setTheme]=useState(getInitialTheme);
 
   useEffect(()=>{applyTheme(theme);},[theme]);
@@ -1006,7 +1042,7 @@ export default function DartTurnier(){
     return()=>window.removeEventListener('storage',onSt);
   },[]);
 
-  useEffect(()=>{if(bracket||groupPhase)save({bracket,groupPhase,config,sounds});},[bracket,groupPhase,config,sounds]);
+  useEffect(()=>{if(bracket||groupPhase)save({bracket,groupPhase,config,sounds}).then(ok=>setSaveError(!ok));},[bracket,groupPhase,config,sounds]);
 
   // Browser back button support
   useEffect(()=>{
@@ -1164,7 +1200,7 @@ export default function DartTurnier(){
 
   // ── GRUPPENPHASE ──
   if(phase==="groups"&&groupPhase)return<>
-    <GroupOverview groupPhase={groupPhase} config={config} onOpen={openMatch} onStartKo={startKoPhase} onTvOverview={openTvOverview} onShowHelp={()=>setShowHelp(true)} onReset={()=>setConfirmReset(true)} theme={theme} toggleTheme={toggleTheme} tvBlocked={tvBlocked} onDismissTvBlocked={()=>setTvBlocked(false)}/>
+    <GroupOverview groupPhase={groupPhase} config={config} onOpen={openMatch} onStartKo={startKoPhase} onTvOverview={openTvOverview} onShowHelp={()=>setShowHelp(true)} onReset={()=>setConfirmReset(true)} theme={theme} toggleTheme={toggleTheme} tvBlocked={tvBlocked} onDismissTvBlocked={()=>setTvBlocked(false)} saveError={saveError} onDismissSaveError={()=>setSaveError(false)}/>
     {showHelp&&<HelpModal onClose={()=>setShowHelp(false)}/>}
     {confirmReset&&<ResetConfirmModal onCancel={()=>setConfirmReset(false)} onConfirm={resetTournament}/>}
   </>;
@@ -1197,6 +1233,11 @@ export default function DartTurnier(){
       {tvBlocked&&<div style={{background:colRedDk,border:`1px solid ${colRed}`,borderRadius:8,padding:"8px 14px",fontSize:11,color:colRed,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
         <span>Browser hat das TV-Fenster blockiert (Popup-Blocker). Popups für diese Seite erlauben, dann nochmal auf "TV-Übersicht" klicken.</span>
         <button onClick={()=>setTvBlocked(false)} aria-label="Hinweis schließen" style={{background:"none",border:"none",color:colRed,fontSize:14,cursor:"pointer",flexShrink:0}}>✕</button>
+      </div>}
+
+      {saveError&&<div style={{background:colRedDk,border:`1px solid ${colRed}`,borderRadius:8,padding:"8px 14px",fontSize:11,color:colRed,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+        <span>Automatisches Speichern fehlgeschlagen — Fortschritt könnte bei einem Neuladen verloren gehen.</span>
+        <button onClick={()=>setSaveError(false)} aria-label="Hinweis schließen" style={{background:"none",border:"none",color:colRed,fontSize:14,cursor:"pointer",flexShrink:0}}>✕</button>
       </div>}
 
       {/* ── Bracket rounds (left column on desktop) ── */}
