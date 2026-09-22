@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as Tone from "tone";
-import { throwTotal, throwDarts, undoTurn, undoLeg as engineUndoLeg, setStarter, getStats } from "./src/engine.js";
+import { throwTotal, throwDarts, undoTurn, undoLeg as engineUndoLeg, setStarter, getStats, createGame } from "./src/engine.js";
 import { getCheckout as engineGetCheckout } from "./src/checkouts.js";
 import { IMPOSSIBLE_TOTALS, dartValue, dartLabel, isValidDart } from "./src/types.js";
 import { newMatch, buildGroups, groupStandings } from "./groups.js";
@@ -298,8 +298,7 @@ const GLOBAL_STYLES_CSS=`
 function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvControls}){
   const[ap,setAp]=useState(match.game.legStarter+1);
   const[bustMsg,setBust]=useState(null);
-  const[tab,setTab]=useState(0);
-  const[showGrid,setShowGrid]=useState(false);
+  const[tab,setTab]=useState(5);
   const[npad,setNpad]=useState("");
   const[showStarter,setShowStarter]=useState(!match.started);
   const[darts,setDarts]=useState([]);
@@ -366,6 +365,10 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
   };
   const undoLeg=()=>{const res=engineUndoLeg(match.game);if(res.result.error)return;const m=structuredClone(match);m.game=res.state;m.winner=null;setAp(m.game.currentPlayer+1);onUpdate(m);};
   const selectStarter=(p)=>{const res=setStarter(match.game,p-1);const m=structuredClone(match);m.game=res.state;m.started=true;setAp(p);setShowStarter(false);onUpdate(m);};
+  // Spiellänge (301/501) pro Match umschaltbar, solange noch kein Dart geworfen wurde —
+  // baut match.game mit derselben Config neu auf, nur startScore geändert. Danach (nach
+  // dem ersten Wurf) nicht mehr möglich, sonst würden laufende Reste keinen Sinn mehr ergeben.
+  const setStartScore=(v)=>{const m=structuredClone(match);m.game=createGame({...match.game.config,startScore:v});onUpdate(m);};
 
   const isReady=match.t1!==null&&match.t2!==null;
 
@@ -458,6 +461,9 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
   // ── STARTER SELECTION ──
   if(showStarter&&isReady)return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div role="group" aria-label="Spiellänge" style={{display:"flex",gap:6,marginBottom:24,width:"100%",maxWidth:300}}>
+        {[301,501].map(v=><button key={v} onClick={()=>setStartScore(v)} aria-pressed={match.game.config.startScore===v} style={{flex:1,padding:"8px 0",borderRadius:6,background:match.game.config.startScore===v?green:surf2,border:`1px solid ${match.game.config.startScore===v?green:bdr}`,color:match.game.config.startScore===v?bg:textMid,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>{v}</button>)}
+      </div>
       <div style={{fontSize:14,color:textLow,marginBottom:20}}>Wer beginnt?</div>
       {[{p:1,n:t1},{p:2,n:t2}].map(({p,n})=><button key={p} onClick={()=>selectStarter(p)} style={{width:"100%",maxWidth:300,padding:"20px 0",marginBottom:12,background:greenDark,border:`1px solid ${greenBdr}`,borderRadius:10,color:green,fontSize:18,fontWeight:700,cursor:"pointer",fontFamily:F}}>{n}</button>)}
       <button onClick={()=>selectStarter(Math.random()<0.5?1:2)} style={{marginTop:8,padding:"12px 24px",background:colBlueDk,border:`1px solid ${colBlue}`,borderRadius:8,color:colBlue,fontSize:13,cursor:"pointer",fontFamily:F}}>🎲 Zufällig</button>
@@ -524,10 +530,8 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
         <button onClick={()=>!dis3&&addDart(0,"S")} aria-disabled={dis3?"true":undefined} style={{flex:1,padding:"8px 0",background:dis3?bg:surf2,border:`1px solid ${dis3?bdrSoft:bdr}`,borderRadius:6,color:dis3?textOff:textLow,fontSize:12,fontWeight:600,cursor:dis3?"default":"pointer",fontFamily:F}}>Miss</button>
         <button onClick={()=>!dis3&&setDarts([...darts,...Array(3-darts.length).fill({field:0,multi:"S"})])} aria-disabled={dis3?"true":undefined} title="Restliche Darts dieser Aufnahme als Miss eintragen" style={{flex:1,padding:"8px 0",background:dis3?bg:surf2,border:`1px solid ${dis3?bdrSoft:bdr}`,borderRadius:6,color:dis3?textOff:colRed,fontSize:12,fontWeight:600,cursor:dis3?"default":"pointer",fontFamily:F}}>Rest Miss</button>
       </div>
-      <div style={{display:"flex",gap:6,padding:"10px 0 4px"}}>
-        <input value={dartInput} onChange={e=>{setDartInput(e.target.value);setDartInputError(false);}} onKeyDown={e=>{if(e.key==="Enter")submitDartInput();}} placeholder="z.B. T20, D25, 0" aria-label="Dart manuell eingeben" style={{flex:1,background:surf2,border:`1px solid ${dartInputError?colRed:bdr}`,borderRadius:6,padding:"8px 10px",color:textHi,fontFamily:F,fontSize:13,boxSizing:"border-box"}}/>
-        <button onClick={submitDartInput} disabled={dis3||!dartInput.trim()} style={{padding:"0 16px",background:surf2,border:`1px solid ${bdr}`,borderRadius:6,color:green,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>OK</button>
-      </div>
+      {/* Manuelle Text-Eingabe (T20, D25, 0...) ausgebaut — parseDartToken/submitDartInput
+          bleiben oben definiert, falls sie später zurückkommen soll. */}
       <div style={{display:"flex",gap:6,padding:"4px 0"}}>
         <button onClick={()=>darts.length&&setDarts(darts.slice(0,-1))} disabled={!darts.length} aria-label="Letzten Dart entfernen" title="Letzten Dart entfernen" style={{flex:1,padding:"0",background:surf2,border:`1px solid ${bdr}`,borderRadius:8,color:darts.length?orange:textOff,fontSize:12,fontWeight:600,fontFamily:F,whiteSpace:"nowrap"}}>Dart ↩</button>
         <button onClick={()=>{if(darts.length){addDarts(darts);setDarts([]);}}} style={{flex:2,padding:"10px 0",background:darts.length?green:surf2,border:`1px solid ${darts.length?green:bdr}`,borderRadius:8,color:darts.length?bg:textOff,fontSize:14,fontWeight:700,cursor:darts.length?"pointer":"default",fontFamily:F}}>{darts.length?`${dTotal} eintragen`:"Darts eingeben"}</button>
@@ -575,16 +579,15 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
       </div>
       {bustMsg&&<div aria-live="assertive" style={{textAlign:"center",padding:"4px 0",color:colRed,fontSize:18,fontWeight:800}}>{bustMsg}</div>}
       <div style={{borderBottom:`1px solid ${bdrSoft}`}}>
+        {/* Favoriten/Numpad/Zahl-Tabs (ids 0-4) ausgebaut — nur noch Darts+Verlauf im UI.
+            renderFavs/renderNumpad/renderGrid bleiben unten definiert, falls die Tabs
+            später zurückkommen sollen. */}
         <div role="tablist" style={{display:"flex",padding:"0 8px"}}>
-          {[{id:0,l:"Favoriten"},{id:5,l:"Darts"},{id:4,l:"Numpad"},{id:6,l:"Verlauf"}].map(t=><button key={t.id} id={`tab-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls="scoring-tabpanel" onClick={()=>setTab(t.id)} style={{flex:1,padding:"6px 0",fontSize:11,background:"transparent",border:"none",borderBottom:tab===t.id?`2px solid ${green}`:"2px solid transparent",color:tab===t.id?green:textLow,cursor:"pointer",fontFamily:F,fontWeight:tab===t.id?700:400}}>{t.l}</button>)}
-          <button onClick={()=>{const n=!showGrid;setShowGrid(n);if(n&&![1,2,3].includes(tab))setTab(1);if(!n&&[1,2,3].includes(tab))setTab(0);}} aria-expanded={showGrid} style={{padding:"6px 10px",fontSize:11,background:"transparent",border:"none",borderBottom:[1,2,3].includes(tab)?`2px solid ${green}`:"2px solid transparent",color:[1,2,3].includes(tab)?green:textLow,cursor:"pointer",fontFamily:F,fontWeight:[1,2,3].includes(tab)?700:400}}>Zahl {showGrid?"▲":"▼"}</button>
+          {[{id:5,l:"Darts"},{id:6,l:"Verlauf"}].map(t=><button key={t.id} id={`tab-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls="scoring-tabpanel" onClick={()=>setTab(t.id)} style={{flex:1,padding:"6px 0",fontSize:11,background:"transparent",border:"none",borderBottom:tab===t.id?`2px solid ${green}`:"2px solid transparent",color:tab===t.id?green:textLow,cursor:"pointer",fontFamily:F,fontWeight:tab===t.id?700:400}}>{t.l}</button>)}
         </div>
-        {showGrid&&<div role="tablist" style={{display:"flex",padding:"0 8px 4px"}}>
-          {[{id:1,l:"0–60"},{id:2,l:"61–120"},{id:3,l:"121–180"}].map(t=><button key={t.id} id={`tab-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls="scoring-tabpanel" onClick={()=>setTab(t.id)} style={{flex:1,padding:"4px 0",fontSize:10,background:"transparent",border:"none",borderBottom:tab===t.id?`2px solid ${green}`:"2px solid transparent",color:tab===t.id?green:textOff,cursor:"pointer",fontFamily:F,fontWeight:tab===t.id?600:400}}>{t.l}</button>)}
-        </div>}
       </div>
       <div id="scoring-tabpanel" role="tabpanel" aria-labelledby={`tab-${tab}`} style={{flex:1,display:"flex",flexDirection:"column",minHeight:250,overflowY:"auto"}}>
-        {tab===5&&renderDarts()}{tab===0&&renderFavs()}{tab===1&&renderGrid(0,60)}{tab===2&&renderGrid(61,120)}{tab===3&&renderGrid(121,180)}{tab===4&&renderNumpad()}{tab===6&&renderHistory()}
+        {tab===5&&renderDarts()}{tab===6&&renderHistory()}
       </div>
     </div>
   );
@@ -687,10 +690,8 @@ function HelpModal({onClose}){
         </div>
         <div style={{fontSize:11,color:textLow,lineHeight:1.9,fontFamily:F}}>
           <div style={{color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>SCORING-TABS</div>
-          <div><span style={{color:greenText}}>Favoriten</span> — häufige Aufnahmen (26, 41, 60…)</div>
           <div><span style={{color:greenText}}>Darts</span> — Einzeldarts: Feld + S/D/T auswählen</div>
-          <div><span style={{color:greenText}}>Numpad</span> — Gesamtpunkte direkt eintippen</div>
-          <div><span style={{color:greenText}}>Zahl ▼</span> — alle Werte 0–180 als Raster</div>
+          <div><span style={{color:greenText}}>Verlauf</span> — alle Aufnahmen des Spiels</div>
           <div style={{marginTop:12,color:textMid,fontWeight:600,marginBottom:2,fontSize:10,letterSpacing:"0.06em"}}>SPIELMODUS</div>
           <div><span style={{color:green}}>Single Out</span> — letzter Dart darf auf alles</div>
           <div><span style={{color:orange}}>Double Out</span> — letzter Dart muss Double oder Bull sein</div>
