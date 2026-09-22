@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as Tone from "tone";
-import { throwTotal, throwDarts, undoTurn, undoLeg as engineUndoLeg, setStarter, getStats } from "./src/engine.js";
+import { throwTotal, throwDarts, undoTurn, undoLeg as engineUndoLeg, setStarter, getStats, createGame } from "./src/engine.js";
 import { getCheckout as engineGetCheckout } from "./src/checkouts.js";
 import { IMPOSSIBLE_TOTALS, dartValue, dartLabel, isValidDart } from "./src/types.js";
 import { newMatch, buildGroups, groupStandings } from "./groups.js";
@@ -365,6 +365,10 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
   };
   const undoLeg=()=>{const res=engineUndoLeg(match.game);if(res.result.error)return;const m=structuredClone(match);m.game=res.state;m.winner=null;setAp(m.game.currentPlayer+1);onUpdate(m);};
   const selectStarter=(p)=>{const res=setStarter(match.game,p-1);const m=structuredClone(match);m.game=res.state;m.started=true;setAp(p);setShowStarter(false);onUpdate(m);};
+  // Spiellänge (301/501) pro Match umschaltbar, solange noch kein Dart geworfen wurde —
+  // baut match.game mit derselben Config neu auf, nur startScore geändert. Danach (nach
+  // dem ersten Wurf) nicht mehr möglich, sonst würden laufende Reste keinen Sinn mehr ergeben.
+  const setStartScore=(v)=>{const m=structuredClone(match);m.game=createGame({...match.game.config,startScore:v});onUpdate(m);};
 
   const isReady=match.t1!==null&&match.t2!==null;
 
@@ -457,6 +461,9 @@ function ScoringView({match,teams,roundName,isDoubleOut,onBack,onUpdate,isTV,tvC
   // ── STARTER SELECTION ──
   if(showStarter&&isReady)return(
     <div style={{minHeight:"100vh",background:bg,color:textHi,fontFamily:F,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div role="group" aria-label="Spiellänge" style={{display:"flex",gap:6,marginBottom:24,width:"100%",maxWidth:300}}>
+        {[301,501].map(v=><button key={v} onClick={()=>setStartScore(v)} aria-pressed={match.game.config.startScore===v} style={{flex:1,padding:"8px 0",borderRadius:6,background:match.game.config.startScore===v?green:surf2,border:`1px solid ${match.game.config.startScore===v?green:bdr}`,color:match.game.config.startScore===v?bg:textMid,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>{v}</button>)}
+      </div>
       <div style={{fontSize:14,color:textLow,marginBottom:20}}>Wer beginnt?</div>
       {[{p:1,n:t1},{p:2,n:t2}].map(({p,n})=><button key={p} onClick={()=>selectStarter(p)} style={{width:"100%",maxWidth:300,padding:"20px 0",marginBottom:12,background:greenDark,border:`1px solid ${greenBdr}`,borderRadius:10,color:green,fontSize:18,fontWeight:700,cursor:"pointer",fontFamily:F}}>{n}</button>)}
       <button onClick={()=>selectStarter(Math.random()<0.5?1:2)} style={{marginTop:8,padding:"12px 24px",background:colBlueDk,border:`1px solid ${colBlue}`,borderRadius:8,color:colBlue,fontSize:13,cursor:"pointer",fontFamily:F}}>🎲 Zufällig</button>
